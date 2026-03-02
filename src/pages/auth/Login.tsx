@@ -15,7 +15,7 @@ export const Login = () => {
         const checkUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                navigate('/home');
+                navigate('/match');
             }
         };
         checkUser();
@@ -40,7 +40,7 @@ export const Login = () => {
                     password,
                 });
                 if (error) throw error;
-                navigate('/home');
+                navigate('/match');
             }
         } catch (err: any) {
             setError(err.message);

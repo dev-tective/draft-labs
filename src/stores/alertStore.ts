@@ -11,12 +11,13 @@ export interface Alert {
     id: string;
     message: string;
     type: AlertType;
-    handleAction?: () => void;
+    handleAction?: () => void | Promise<void>;
     duration?: number;
 }
 
 interface AlertStore {
     alerts: Alert[];
+
     addAlert: (alert: Omit<Alert, 'id'>) => void;
     removeAlert: (id: string) => void;
     clearAlerts: () => void;

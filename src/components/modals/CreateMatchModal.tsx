@@ -1,8 +1,8 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { Game } from "@/hooks/useMatches";
-import { useCreateMatch } from "@/hooks/useMatches";
+import { Game } from "@/hooks/useMatch";
+import { useCreateMatch } from "@/hooks/useMatch";
 import { useMatchStore } from "@/stores/matchStore";
 import { Option } from "@/components/Option";
 
@@ -46,6 +46,10 @@ export const CreateMatchModal = forwardRef<ModalRef, {}>((_props, ref) => {
     const [selectedGame, setSelectedGame] = useState<Game>(Game.MLBB);
     const [bestOf, setBestOf] = useState<number>(3);
     const [bansPerTeam, setBansPerTeam] = useState<number>(3);
+
+    // Allowed bans values
+    const bansValues = [0, 3, 5, 7];
+    const bansIndex = bansValues.indexOf(bansPerTeam);
 
     // const navigate = useNavigate();
     const { mutateAsync: createMatch, isPending: loading } = useCreateMatch();
@@ -159,9 +163,10 @@ export const CreateMatchModal = forwardRef<ModalRef, {}>((_props, ref) => {
                             <input
                                 type="range"
                                 min="0"
-                                max="7"
-                                value={bansPerTeam}
-                                onChange={(e) => setBansPerTeam(Number(e.target.value))}
+                                step="1"
+                                max="3"
+                                value={bansIndex}
+                                onChange={(e) => setBansPerTeam(bansValues[Number(e.target.value)])}
                                 className="
                                     w-full h-2 
                                     bg-slate-800 
@@ -191,18 +196,18 @@ export const CreateMatchModal = forwardRef<ModalRef, {}>((_props, ref) => {
                             />
                             {/* Number Labels */}
                             <div className="flex justify-between mt-2 px-1">
-                                {Array.from({ length: 8 }, (_, i) => (
+                                {Array.from([0, 3, 5, 7], (_) => (
                                     <span
-                                        key={i}
+                                        key={_}
                                         className={`
                                             text-xs font-medium transition-all
-                                            ${bansPerTeam === i ?
+                                            ${bansPerTeam === _ ?
                                                 'text-fuchsia-500 text-base font-bold' :
                                                 'text-slate-500'
                                             }
                                         `}
                                     >
-                                        {i}
+                                        {_}
                                     </span>
                                 ))}
                             </div>

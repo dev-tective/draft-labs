@@ -1,7 +1,7 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { useMatches } from "@/hooks/useMatches";
+import { useMatches } from "@/hooks/useMatch";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { ErrorMessage } from "@/components/shared/ErrorMessage";
 import { useMatchStore } from "@/stores/matchStore";

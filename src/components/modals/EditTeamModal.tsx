@@ -1,60 +1,52 @@
 import { forwardRef, useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { ModalLayout, ModalRef } from "../../layout/ModalLayout";
-import { Team } from "../../hooks/useMatches";
-import { useUpdateTeam } from "../../hooks/useTeams";
-import { useMatchStore } from "@/stores/matchStore";
-
-const DEFAULT_LOGO = "ui/team-logo.png";
+import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
+import { Team, useTeamStore } from "@/stores/teamStore";
+import SHIELD from "@/assets/ui/shield.svg";
 
 interface EditTeamModalProps {
     team: Team;
 }
 
-export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team }, ref) => {
-    // Check if the current logo is the default one or empty
-    const isDefaultInitial = !team.logo_url || team.logo_url === DEFAULT_LOGO;
+const isDefaultLogo = (url?: string | null) => !url || url === SHIELD;
 
-    const [name, setName] = useState(team.name);
-    const [acronym, setAcronym] = useState(team.acronym);
-    const [coach, setCoach] = useState(team.coach || '');
-    const [logoUrl, setLogoUrl] = useState(isDefaultInitial ? '' : team.logo_url);
-    const [useCustomLogo, setUseCustomLogo] = useState(!isDefaultInitial);
+const buildForm = (t: Team) => ({
+    name: t.name,
+    acronym: t.acronym,
+    coach: t.coach || '',
+    logoUrl: isDefaultLogo(t.logo_url) ? '' : (t.logo_url ?? ''),
+    useCustomLogo: !isDefaultLogo(t.logo_url),
+});
+
+export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team }, ref) => {
+    const [form, setForm] = useState(() => buildForm(team));
+    const { name, acronym, coach, logoUrl, useCustomLogo } = form;
 
     // Reset state when team changes
     useEffect(() => {
-        const isDefault = !team.logo_url || team.logo_url === DEFAULT_LOGO;
-        setName(team.name);
-        setAcronym(team.acronym);
-        setCoach(team.coach || '');
-        setLogoUrl(isDefault ? '' : team.logo_url);
-        setUseCustomLogo(!isDefault);
+        setForm(buildForm(team));
     }, [team]);
 
-    const matchId = useMatchStore((state) => state.currentMatchId);
-    const { mutate: updateTeam, isPending } = useUpdateTeam(matchId || '');
+    const { updateTeam } = useTeamStore();
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!name.trim() || !acronym.trim()) return;
 
-        updateTeam({
+        await updateTeam({
             id: team.id,
             name: name.trim(),
             acronym: acronym.trim(),
             coach: coach.trim() || undefined,
-            logo_url: (useCustomLogo && logoUrl?.trim()) ? logoUrl.trim() : null,
-        }, {
-            onSuccess: () => {
-                if (ref && typeof ref !== 'function' && ref.current) {
-                    ref.current.close();
-                }
-            }
+            logo_url: (useCustomLogo && logoUrl?.trim()) ? logoUrl.trim() : undefined,
         });
+
+        if (ref && typeof ref !== 'function' && ref.current) {
+            ref.current.close();
+        }
     };
 
     const handleRestoreDefault = () => {
-        setUseCustomLogo(false);
-        setLogoUrl('');
+        setForm(prev => ({ ...prev, useCustomLogo: false, logoUrl: '' }));
     };
 
     return (
@@ -101,7 +93,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                     <input
                         type="text"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="Enter team name"
                         className="
                             w-full
@@ -135,7 +127,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                     <input
                         type="text"
                         value={acronym}
-                        onChange={(e) => setAcronym(e.target.value)}
+                        onChange={(e) => setForm(prev => ({ ...prev, acronym: e.target.value }))}
                         placeholder="Enter team acronym"
                         maxLength={5}
                         className="
@@ -170,7 +162,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                     <input
                         type="text"
                         value={coach}
-                        onChange={(e) => setCoach(e.target.value)}
+                        onChange={(e) => setForm(prev => ({ ...prev, coach: e.target.value }))}
                         placeholder="Enter coach name"
                         className="
                             w-full
@@ -217,7 +209,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                             </button>
                         ) : (
                             <button
-                                onClick={() => setUseCustomLogo(true)}
+                                onClick={() => setForm(prev => ({ ...prev, useCustomLogo: true }))}
                                 className="
                                     text-xs text-cyan-400 hover:text-cyan-300
                                     uppercase tracking-wider font-semibold
@@ -235,7 +227,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                         <input
                             type="text"
                             value={logoUrl}
-                            onChange={(e) => setLogoUrl(e.target.value)}
+                            onChange={(e) => setForm(prev => ({ ...prev, logoUrl: e.target.value }))}
                             placeholder="https://example.com/logo.png"
                             className="
                                 w-full
@@ -269,14 +261,9 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                             Preview
                         </p>
                         <img
-                            src={useCustomLogo && logoUrl ? logoUrl : DEFAULT_LOGO}
+                            src={useCustomLogo && logoUrl ? logoUrl : SHIELD}
                             alt="Preview"
                             className="w-24 h-24 object-contain rounded-lg"
-                            onError={(e) => {
-                                if (e.currentTarget.src !== DEFAULT_LOGO) {
-                                    e.currentTarget.src = DEFAULT_LOGO;
-                                }
-                            }}
                         />
                     </div>
                 </div>
@@ -284,7 +271,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={!name.trim() || !acronym.trim() || isPending}
+                    disabled={!name.trim() || !acronym.trim()}
                     className={`
                         w-full py-3 md:py-4
                         text-lg font-bold uppercase 
@@ -297,13 +284,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                         flex items-center justify-center gap-2
                     `}
                 >
-                    {isPending && (
-                        <Icon
-                            icon="line-md:loading-twotone-loop"
-                            className="text-2xl"
-                        />
-                    )}
-                    {isPending ? 'Saving...' : 'Save Changes'}
+                    Save Changes
                 </button>
             </div>
         </ModalLayout>

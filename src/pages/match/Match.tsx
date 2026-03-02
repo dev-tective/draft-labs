@@ -1,146 +1,32 @@
-import { Team } from "@/pages/match/components/Team";
 import { Copy } from "@/components/Copy";
-import { Match as MatchType, useMatch, useUpdateMatch } from "@/hooks/useMatches";
+import { Game } from "@/stores/matchStore";
 import { useMatchStore } from "@/stores/matchStore";
 import { CutOutBtn, CutOutBtnPrimary } from "@/components/CutOutBtn";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ModalRef } from "@/layout/ModalLayout";
 import { CreateMatchModal } from "@/components/modals/CreateMatchModal";
 import { JoinLobbyModal } from "@/components/modals/JoinLobbyModal";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-import { ErrorMessage } from "@/components/shared/ErrorMessage";
 import { WarningMessage } from "@/components/shared/WarningMessage";
 import { Icon } from "@iconify/react";
-import { useState } from "react";
-import { useTagsStore } from "@/stores/tagsStore";
 import { AlertType } from "@/stores/alertStore";
+import { MatchEditorField } from "./components/MatchEditorField";
+import { TagSelect } from "../../components/TagSelect";
+import { Team } from "@/pages/match/components/Team";
 
-interface MatchEditorFieldProps {
-    label: string;
-    fieldId: string;
-    value: number;
-    onChange: (value: number) => void;
-    min?: number;
-    max?: number;
-    step?: number;
-    disabled?: boolean;
-}
+const MatchContent = () => {
+    const { currentMatch, updateMatch, deleteMatch } = useMatchStore();
 
-const MatchEditorField = ({
-    label,
-    fieldId,
-    value,
-    onChange,
-    min = 0,
-    max = 100,
-    step = 1,
-    disabled = false,
-}: MatchEditorFieldProps) => {
-    const handleIncrement = () => {
-        const newValue = value + step;
-        if (newValue <= max) {
-            onChange(newValue);
-        }
+    const [bansPerTeam, setBansPerTeam] = useState(currentMatch?.bans_per_team ?? 3);
+    const [bestOf, setBestOf] = useState(currentMatch?.best_of ?? 3);
+    const [game, setGame] = useState(currentMatch?.game);
+
+    const handleUpdateMatch = (field: 'bans_per_team' | 'best_of' | 'game', value: number | string) => {
+        if (!currentMatch) return;
+        updateMatch({ id: currentMatch.id, [field]: field === 'game' ? value : Number(value) });
     };
 
-    const handleDecrement = () => {
-        const newValue = value - step;
-        if (newValue >= min) {
-            onChange(newValue);
-        }
-    };
-
-    return (
-        <div className="flex items-center gap-2">
-            <label
-                htmlFor={fieldId}
-                className="uppercase text-sm font-medium text-slate-400"
-            >
-                {label}:
-            </label>
-            <div className="flex items-center gap-1">
-                {/* Decrement Button */}
-                <button
-                    type="button"
-                    onClick={handleDecrement}
-                    disabled={disabled || value <= min}
-                    className={`
-                        w-6 h-8 flex items-center justify-center
-                        bg-slate-950
-                        hover:bg-fuchsia-950/70 hover:border-fuchsia-500
-                        border border-slate-700 rounded-l-lg
-                        text-white font-bold text-lg
-                        focus:outline-none focus:ring-2 focus:ring-fuchsia-500
-                        disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-fuchsia-700/70
-                        transition-all
-                    `}
-                >
-                    -
-                </button>
-
-                {/* Input */}
-                <input
-                    id={fieldId}
-                    type="text"
-                    value={value}
-                    readOnly
-                    disabled={disabled}
-                    className={`
-                        w-12 h-8 px-2
-                        bg-slate-800/20 border-y border-slate-700
-                        text-white text-center font-semibold
-                        pointer-events-none select-none
-                        focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:z-10
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                        transition-all
-                    `}
-                />
-
-                {/* Increment Button */}
-                <button
-                    type="button"
-                    onClick={handleIncrement}
-                    disabled={disabled || value >= max}
-                    className={`
-                        w-6 h-8 flex items-center justify-center
-                        bg-slate-950
-                        hover:bg-fuchsia-950/70 hover:border-fuchsia-500
-                        border border-slate-700 rounded-r-lg
-                        text-white font-bold text-lg
-                        focus:outline-none focus:ring-2 focus:ring-fuchsia-500
-                        disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-fuchsia-700/70
-                        transition-all
-                    `}
-                >
-                    +
-                </button>
-            </div>
-        </div>
-    );
-}
-
-const MatchContent = ({ match }: { match: MatchType }) => {
-    const { id, teams, bans_per_team, best_of, game: gameType } = match;
-    const [bansPerTeam, setBansPerTeam] = useState(bans_per_team);
-    const [bestOf, setBestOf] = useState(best_of);
-    const [game, setGame] = useState(gameType);
-
-    const {
-        mutateAsync: updateMatch,
-        isPending: isUpdatingMatch,
-        error: updateError
-    } = useUpdateMatch();
-
-    const handleUpdateMatch = async (field: 'bans_per_team' | 'best_of' | 'game', value: number | string) => {
-        try {
-            await updateMatch({
-                id,
-                [field]: field === 'game' ? value : Number(value)
-            });
-        } catch (error) {
-            console.error('Error updating match:', error);
-        }
-    };
+    if (!currentMatch) return null;
 
     return (
         <div className="w-full flex flex-col gap-6">
@@ -157,8 +43,8 @@ const MatchContent = ({ match }: { match: MatchType }) => {
                         className="text-2xl mr-2"
                     />
                     <Copy
-                        value={id}
-                        copy={id}
+                        value={currentMatch.id}
+                        copy={currentMatch.id}
                         alert={{
                             message: "Match ID has been copied to clipboard.",
                             type: AlertType.INFO
@@ -177,10 +63,7 @@ const MatchContent = ({ match }: { match: MatchType }) => {
                             setBestOf(value);
                             handleUpdateMatch('best_of', value);
                         }}
-                        min={1}
-                        max={7}
-                        step={2}
-                        disabled={isUpdatingMatch}
+                        values={[1, 3, 5, 7]}
                     />
 
                     <MatchEditorField
@@ -191,56 +74,37 @@ const MatchContent = ({ match }: { match: MatchType }) => {
                             setBansPerTeam(value);
                             handleUpdateMatch('bans_per_team', value);
                         }}
-                        min={0}
-                        max={10}
-                        step={1}
-                        disabled={isUpdatingMatch}
+                        values={[0, 3, 5, 7]}
                     />
 
                     {/* Game Type */}
-                    <div className="flex items-center gap-2">
-                        <label htmlFor="game" className="text-sm font-medium text-slate-400">
-                            GAME:
-                        </label>
-                        <select
-                            id="game"
-                            value={game}
-                            onChange={(e) => {
-                                setGame(e.target.value as typeof gameType);
-                                handleUpdateMatch('game', e.target.value);
-                            }}
-                            disabled={isUpdatingMatch}
-                            className="
-                                px-3 py-1
-                                bg-slate-800 border border-slate-600 rounded
-                                text-white font-semibold
-                                focus:outline-none focus:ring-2 focus:ring-fuchsia-500
-                                disabled:opacity-50 disabled:cursor-not-allowed
-                                transition-all
-                                cursor-pointer
-                            "
-                        >
-                            <option value="MLBB">MLBB</option>
-                        </select>
-                    </div>
+                    <TagSelect
+                        icon="ion:game-controller"
+                        field="Game"
+                        options={Object.values(Game).map((g) => ({ value: g, label: g }))}
+                        initialValue={game ?? null}
+                        onUpdate={(newGame) => {
+                            if (newGame) {
+                                setGame(newGame as typeof game);
+                                handleUpdateMatch('game', newGame);
+                            }
+                        }}
+                    />
                 </div>
             </div>
 
-            {/* Error Message */}
-            {updateError && (
-                <div className="px-4">
-                    <ErrorMessage
-                        title="Error updating match"
-                        message={updateError.message}
-                    />
-                </div>
-            )}
+            <div className="ml-auto w-full md:w-1/2 xl:w-1/3">
+                <CutOutBtnPrimary
+                    alternative
+                    icon="ic:sharp-delete"
+                    text="Delete Match"
+                    onClick={() => deleteMatch(currentMatch.id)}
+                />
+            </div>
 
             {/* Teams */}
             <div className="flex flex-col xl:flex-row flex-1 h-full gap-6">
-                <Team
-                    team={teams[0]}
-                />
+                <Team index={0} />
                 <span className="
                     m-auto pr-1.5
                     h-24 w-24 
@@ -251,29 +115,25 @@ const MatchContent = ({ match }: { match: MatchType }) => {
                 ">
                     VS
                 </span>
-                <Team
-                    team={teams[1]}
-                    reverse
-                />
+                <Team index={1} reverse />
             </div>
         </div>
-    )
-}
+    );
+};
 
 export const Match = () => {
-    const currentMatchId = useMatchStore(state => state.currentMatchId);
-    const { data: match, isLoading, error } = useMatch(currentMatchId || '');
-    const { getLanes } = useTagsStore();
+    const { currentMatch, loading, subscribeToMatch, unsubscribe } = useMatchStore();
 
     const createMatchModalRef = useRef<ModalRef>(null);
     const joinLobbyModalRef = useRef<ModalRef>(null);
 
+    // Activar el realtime si hay un match persistido
     useEffect(() => {
-        if (!match) return;
-
-        getLanes(match.game);
-    }, [match]);
-
+        if (currentMatch?.id) {
+            subscribeToMatch(currentMatch.id);
+        }
+        return () => unsubscribe();
+    }, [currentMatch?.id]);
 
     return (
         <>
@@ -303,29 +163,17 @@ export const Match = () => {
                         />
                     </div>
                 </div>
+
                 <div className="flex flex-1 w-11/12 space-y-10 mx-auto py-6 md:py-10">
-                    {isLoading ? (
-                        <div className="flex justify-center items-center w-full">
-                            <LoadingSpinner
-                                message="Loading match..."
-                            />
-                        </div>
-                    ) : error ? (
-                        <div className="flex justify-center items-center w-full">
-                            <ErrorMessage
-                                title="Error loading match"
-                                message={error.message}
-                            />
-                        </div>
-                    ) : !match ? (
-                        <div className="flex justify-center items-center w-full">
-                            <WarningMessage
-                                title="No match found"
-                                message="No active match found. Create a new match or join an existing lobby."
-                            />
-                        </div>
+                    {loading ? (
+                        <LoadingSpinner message="Loading match..." />
+                    ) : !currentMatch ? (
+                        <WarningMessage
+                            title="No match found"
+                            message="No active match found. Create a new match or join an existing lobby."
+                        />
                     ) : (
-                        <MatchContent match={match} />
+                        <MatchContent />
                     )}
                 </div>
             </div>

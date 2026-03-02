@@ -36,6 +36,9 @@
       ],
       "@/pages/*": [
         "src/pages/*"
+      ],
+      "@/assets/*": [
+        "src/assets/*"
       ]
     },
     /* Linting */

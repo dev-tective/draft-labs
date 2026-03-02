@@ -1,32 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/supabaseClient";
-import { Tag } from "@/stores/tagsStore";
+import { useTagsStore } from "@/stores/tagsStore";
 import { useMatchStore } from "@/stores/matchStore";
 import { AlertType, useAlertStore } from "@/stores/alertStore";
+import { Team } from "./useTeam";
 
 export enum Game {
     MLBB = 'MLBB',
-}
-
-export interface Team {
-    id: string;
-    name: string;
-    acronym: string;
-    logo_url?: string;
-    coach?: string | null;
-    created_at: string;
-    match_id: string;
-    players: Player[];
-}
-
-export interface Player {
-    id: string;
-    nickname: string;
-    team_id: string;
-    image_url?: string;
-    lane_id?: number;
-    lanes?: Tag;
-    created_at: string;
 }
 
 export interface Match {
@@ -36,15 +16,10 @@ export interface Match {
     created_at: string;
     expires_at: string;
     game: Game;
-    teams: Team[];
+    // teams: Team[];
     user_id: string;
 }
 
-/**
- * Hook para obtener todos los matches del usuario autenticado
- * Trae todos los matches de la base de datos y verifica la fecha de expiración
- * Elimina automáticamente los matches expirados
- */
 export const useMatches = () => {
     const addAlert = useAlertStore((state) => state.addAlert);
 
@@ -73,7 +48,7 @@ export const useMatches = () => {
                 `)
                 .eq('user_id', user.id)
                 .gt('expires_at', new Date().toISOString())
-                .order('created_at', { ascending: false });
+                .order('created_at', { referencedTable: 'teams', ascending: true });
 
             if (error) {
                 addAlert({
@@ -116,28 +91,25 @@ export const useMatch = (id: string) => {
                     )
                 `)
                 .eq('id', id)
+                .order('created_at', { referencedTable: 'teams', ascending: true })
                 .gt('expires_at', new Date().toISOString())
                 .single();
 
             // Si el match no existe o expiró, limpiar el currentMatchId del store
             if (error) {
-                // PGRST116 = No rows found (match expiró o no existe)
-                if (error.code === 'PGRST116') {
-                    const currentMatchId = useMatchStore.getState().currentMatchId;
+                useMatchStore.getState().clearCurrentMatchId();
 
-                    if (currentMatchId === id) {
-                        useMatchStore.getState().clearCurrentMatchId();
-                    }
+                addAlert({
+                    message: 'Match not found or expired',
+                    type: AlertType.ERROR,
+                });
 
-                    addAlert({
-                        message: 'Match not found or expired',
-                        type: AlertType.ERROR,
-                    });
-
-                    return null;
-                }
                 throw error;
             }
+
+            useMatchStore.getState().setCurrentMatchId(id);
+            useTagsStore.getState().getLanes(data.game);
+            useTagsStore.getState().getMaps(data.game);
 
             return data as Match;
         },
@@ -284,11 +256,17 @@ export const useUpdateMatch = () => {
                 type: AlertType.ERROR,
             });
         },
-        onSuccess: (data) => {
-            // Update the individual match cache
-            queryClient.setQueryData(["match", data.id], data);
+        onSuccess: (_data, variables) => {
+            // Invalidate the specific match query to trigger a refetch
+            // We do NOT use setQueryData here because the response data from the update
+            // might not include the side-effects (games created/deleted) from the SQL trigger
+            // which runs AFTER the update.
+            queryClient.invalidateQueries({ queryKey: ["match", variables.id] });
 
-            // Invalidate the matches list
+            // Invalidate the games query for this match
+            queryClient.invalidateQueries({ queryKey: ["games"] });
+
+            // Invalidate the matches list as well
             queryClient.invalidateQueries({ queryKey: ["matches"] });
         },
     });
@@ -324,6 +302,8 @@ export const useDeleteMatch = () => {
 
             // Invalidate the matches list
             queryClient.invalidateQueries({ queryKey: ["matches"] });
+
+            useMatchStore.getState().clearCurrentMatchId();
 
             addAlert({
                 message: 'Match deleted successfully',

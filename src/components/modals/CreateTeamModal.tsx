@@ -2,44 +2,60 @@ import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
 import { useScraperTeam, ScrapedTeam } from "@/hooks/useScraperTeam";
-import { useCreateTeam } from "@/hooks/useTeams";
+import { useCreateTeam } from "@/hooks/useTeam";
 import { useMatchStore } from "@/stores/matchStore";
+import { useSortable } from "@dnd-kit/react/sortable";
+import { DragDropProvider } from "@dnd-kit/react";
 
 interface PlayerInputProps {
+    uid: string;
     nickname: string;
     index: number;
     updatePlayerNickname: (index: number, nickname: string) => void;
     removePlayer: (index: number) => void;
 }
 
-const PlayerInput = ({ nickname, index, updatePlayerNickname, removePlayer }: PlayerInputProps) => {
+const PlayerInput = ({ uid, nickname, index, updatePlayerNickname, removePlayer }: PlayerInputProps) => {
+    const { ref, handleRef } = useSortable({ id: uid, index });
     return (
-        <div className="relative group">
+        <div
+            ref={ref}
+            className="
+                relative group
+                flex items-center gap-2
+                w-full px-3 py-2
+                bg-slate-800/50 border border-slate-700
+                rounded-lg
+                transition-colors
+                hover:border-slate-500
+            "
+        >
+            <Icon
+                icon="icon-park-outline:drag"
+                className="text-slate-500 cursor-grab shrink-0 hover:text-slate-300 transition-colors"
+                width={18}
+                height={18}
+                ref={handleRef}
+            />
             <input
                 type="text"
                 value={nickname}
                 onChange={(e) => updatePlayerNickname(index, e.target.value)}
                 placeholder="Player name"
                 className="
-                    w-full
-                    px-3 py-2
-                    bg-slate-800/50
-                    border border-slate-700
-                    rounded-lg
+                    flex-1 min-w-0
+                    bg-transparent
                     text-sm text-slate-300
                     tracking-wider
                     placeholder:text-slate-600
                     focus:outline-none
-                    focus:border-fuchsia-500
-                    focus:bg-slate-800
-                    transition-colors
                 "
             />
             <button
                 onClick={() => removePlayer(index)}
                 className="
-                    absolute -top-2 -right-2
-                    w-6 h-6
+                    shrink-0
+                    w-5 h-5
                     bg-fuchsia-500/80
                     hover:bg-fuchsia-500
                     rounded-full
@@ -50,7 +66,7 @@ const PlayerInput = ({ nickname, index, updatePlayerNickname, removePlayer }: Pl
                 "
                 title="Remove player"
             >
-                <Icon icon="mdi:close" className="text-sm" />
+                <Icon icon="mdi:close" width={12} height={12} />
             </button>
         </div>
     );
@@ -82,7 +98,7 @@ const Section = ({ title, icon, iconColor = 'text-cyan-400', children }: Section
     );
 };
 
-export const CreateTeamModal = forwardRef<ModalRef, { }>((_, ref) => {
+export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
     const [teamUrl, setTeamUrl] = useState("");
     const [scrapedTeam, setScrapedTeam] = useState<ScrapedTeam>({
         name: "",
@@ -95,7 +111,7 @@ export const CreateTeamModal = forwardRef<ModalRef, { }>((_, ref) => {
 
     // Hook for creating team
     const matchId = useMatchStore((state) => state.currentMatchId);
-    const { mutate: createTeam, isPending: isCreating, error: createError } = useCreateTeam(matchId || '');
+    const { mutate: createTeam, isPending: isCreating, error: createError } = useCreateTeam();
 
     const handleScrape = async () => {
         if (!teamUrl.trim()) return;
@@ -135,7 +151,7 @@ export const CreateTeamModal = forwardRef<ModalRef, { }>((_, ref) => {
     const addPlayer = () => {
         setScrapedTeam({
             ...scrapedTeam,
-            players: [{ nickname: "" }, ...scrapedTeam.players]
+            players: [{ uid: crypto.randomUUID(), nickname: "" }, ...scrapedTeam.players]
         });
     };
 
@@ -164,6 +180,7 @@ export const CreateTeamModal = forwardRef<ModalRef, { }>((_, ref) => {
             }));
 
         createTeam({
+            match_id: matchId || '',
             name: scrapedTeam.name.trim(),
             acronym: scrapedTeam.acronym.trim(),
             logo_url: scrapedTeam.logo_url || undefined,
@@ -350,43 +367,43 @@ export const CreateTeamModal = forwardRef<ModalRef, { }>((_, ref) => {
                         </div>
 
                         {/* Players List */}
-                        <div>
-                            <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-2">
-                                Players ({scrapedTeam.players.length})
-                            </h4>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                {/* Add Player Button */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-xs text-slate-500 uppercase tracking-wider">
+                                    Players ({scrapedTeam.players.length})
+                                </h4>
                                 <button
                                     onClick={addPlayer}
                                     className="
+                                        flex items-center gap-1.5
                                         px-3 py-1
                                         bg-slate-800/30
-                                        border-2 border-dashed border-slate-600
-                                        hover:border-fuchsia-500
-                                        hover:bg-slate-800/50
+                                        border border-dashed border-slate-600
+                                        hover:border-fuchsia-500 hover:bg-slate-800/50
                                         rounded-lg
-                                        text-slate-500
-                                        hover:text-fuchsia-500
+                                        text-slate-500 hover:text-fuchsia-400
+                                        text-xs uppercase tracking-wider
                                         transition-all
-                                        flex items-center justify-center gap-2
                                     "
                                 >
-                                    <Icon icon="mdi:plus" className="text-2xl" />
-                                    <span className="text-sm uppercase tracking-wider">
-                                        Add
-                                    </span>
+                                    <Icon icon="mdi:plus" width={14} height={14} />
+                                    Add player
                                 </button>
-
-                                {scrapedTeam.players.map((player, index) => (
-                                    <PlayerInput
-                                        key={index}
-                                        nickname={player.nickname}
-                                        index={index}
-                                        updatePlayerNickname={updatePlayerNickname}
-                                        removePlayer={removePlayer}
-                                    />
-                                ))}
                             </div>
+                            <DragDropProvider>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    {scrapedTeam.players.map((player, index) => (
+                                        <PlayerInput
+                                            key={player.uid ?? index}
+                                            uid={player.uid ?? String(index)}
+                                            nickname={player.nickname}
+                                            index={index}
+                                            updatePlayerNickname={updatePlayerNickname}
+                                            removePlayer={removePlayer}
+                                        />
+                                    ))}
+                                </div>
+                            </DragDropProvider>
                         </div>
                     </div>
                 </Section>

@@ -2,6 +2,7 @@ import { supabase } from "@/supabaseClient";
 
 // Types para el team scraper
 export interface ScrapedPlayer {
+    uid?: string;
     nickname: string;
 }
 
@@ -18,7 +19,10 @@ const mapScrapedTeamToTeamData = (scrapedTeam: ScrapedTeam): ScrapedTeam => {
         name: scrapedTeam.name,
         acronym: scrapedTeam.acronym,
         logo_url: scrapedTeam.logo_url,
-        players: scrapedTeam.players,
+        players: scrapedTeam.players.map(p => ({
+            ...p,
+            uid: p.uid ?? crypto.randomUUID(),
+        })),
     };
 };
 

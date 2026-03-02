@@ -106,7 +106,7 @@ export const AlertContainer = () => {
         <aside className={`
                 fixed flex flex-col items-end justify-end 
                 h-dvh w-2/10 min-w-80 gap-3
-                left-5 bottom-5 z-20 
+                left-5 bottom-5 z-50
                 pointer-events-none
         `}>
             {alerts.map((alert) => (

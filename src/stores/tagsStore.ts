@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Game } from "../hooks/useMatches";
+import { Game } from "../hooks/useMatch";
 import { supabase } from "../supabaseClient";
 
 export interface Tag {
@@ -7,21 +7,27 @@ export interface Tag {
     name: string;
     game: Game;
     image?: string;
+    active?: boolean;
     created_at: string;
 }
 
 interface TagsStore {
     lanes: Tag[];
+    maps: Tag[];
     selectedLane: number;
     loading: boolean;
     error: string | null;
 
     getLanes: (game: Game) => Promise<void>;
-    findLane: (id: string) => Tag | undefined;
+    findLane: (id: number) => Tag | undefined;
+
+    getMaps: (game: Game) => Promise<void>;
+    findMap: (id: number) => Tag | undefined;
 }
 
 export const useTagsStore = create<TagsStore>((set, get) => ({
     lanes: [],
+    maps: [],
     selectedLane: 0,
     loading: false,
     error: null,
@@ -38,9 +44,9 @@ export const useTagsStore = create<TagsStore>((set, get) => ({
                 .select('*')
                 .order('name', { ascending: true })
                 .eq('game', game);
-            
+
             if (error) throw error;
-            
+
             set({
                 lanes: data || [],
                 loading: false,
@@ -57,7 +63,39 @@ export const useTagsStore = create<TagsStore>((set, get) => ({
         }
     },
 
-    findLane: (id: string) => {
-        return get().lanes.find((lane) => lane.id === Number(id));
+    findLane: (id: number) => {
+        return get().lanes.find((lane) => lane.id === id);
+    },
+
+    getMaps: async (game: Game = Game.MLBB) => {
+        set({
+            loading: true,
+            error: null
+        });
+
+        try {
+            const { data, error } = await supabase
+                .from('maps')
+                .select('*')
+                .eq('game', game);
+
+            if (error) throw error;
+
+            set({
+                maps: data || [],
+                loading: false,
+                error: null
+            });
+        } catch (error) {
+            set({
+                error: error instanceof Error ? error.message : 'Error al cargar datos',
+                loading: false,
+                maps: []
+            });
+        }
+    },
+
+    findMap: (id: number) => {
+        return get().maps.find((map) => map.id === id);
     }
 }))

@@ -1,18 +1,18 @@
+import { Panel } from "./Panel";
+
 interface ErrorMessageProps {
     message?: string;
     title?: string;
-    fullScreen?: boolean;
     onRetry?: () => void;
 }
 
 export const ErrorMessage = ({
-    message = "Ha ocurrido un error",
+    message = "An error has occurred",
     title = "Error",
-    fullScreen = false,
     onRetry
 }: ErrorMessageProps) => {
-    const content = (
-        <div className="flex flex-col items-center justify-center gap-4 text-center max-w-md px-6">
+    return (
+        <Panel>
             {/* Error Icon */}
             <div className="relative">
                 <div className="w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center">
@@ -33,15 +33,9 @@ export const ErrorMessage = ({
             </div>
 
             {/* Title */}
-            <h2 className="text-2xl font-bold text-red-400">
-                {title}
-            </h2>
-
+            <h2 className="text-2xl font-bold text-red-400">{title}</h2>
             {/* Message */}
-            <p className="text-slate-300 text-base leading-relaxed">
-                {message}
-            </p>
-
+            <p className="text-slate-300 text-base leading-relaxed">{message}</p>
             {/* Retry Button */}
             {onRetry && (
                 <button
@@ -64,16 +58,6 @@ export const ErrorMessage = ({
                     Reintentar
                 </button>
             )}
-        </div>
-    );
-
-    if (fullScreen) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                {content}
-            </div>
-        );
-    }
-
-    return content;
+        </Panel>
+    )
 };

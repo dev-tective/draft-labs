@@ -1,13 +1,11 @@
-import { forwardRef, useState, useEffect } from "react";
+import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "../../layout/ModalLayout";
-import { Player } from "../../hooks/useMatches";
-import { useCreatePlayer, useUpdatePlayer } from "../../hooks/useTeams";
+import { Player, usePlayerStore } from "@/stores/playerStore";
 import { useMatchStore } from "@/stores/matchStore";
 import { useTagsStore } from "@/stores/tagsStore";
 import { Option } from "@/components/Option";
-
-const DEFAULT_IMAGE = "ui/silueta.png";
+import DEFAULT_IMAGE from "@/assets/ui/silueta.png";
 
 interface EditPlayerModalProps {
     player: Player;
@@ -15,64 +13,49 @@ interface EditPlayerModalProps {
     teamId: string;
 }
 
-export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ player, createMode = false, teamId }, ref) => {
+export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ player, createMode, teamId }, ref) => {
     const isDefaultInitial = !player.image_url || player.image_url === DEFAULT_IMAGE;
 
-    const [nickname, setNickname] = useState(player.nickname);
-    const [imageUrl, setImageUrl] = useState(isDefaultInitial ? '' : player.image_url);
-    const [laneId, setLaneId] = useState(player.lane_id || null);
-    const [useCustomImage, setUseCustomImage] = useState(!isDefaultInitial);
+    const [formData, setFormData] = useState({
+        nickname: player.nickname,
+        imageUrl: isDefaultInitial ? '' : player.image_url,
+        laneId: player.lane?.id ?? 0,
+        useCustomImage: !isDefaultInitial
+    });
 
-    const matchId = useMatchStore((state) => state.currentMatchId);
-    const { mutate: updatePlayer, isPending } = useUpdatePlayer(matchId || '');
-    const { mutate: createPlayer, isPending: isPendingCreatePlayer } = useCreatePlayer(matchId || '');
+    const { currentMatch } = useMatchStore();
+    const { createPlayer, updatePlayer } = usePlayerStore();
 
-    const lanes = useTagsStore((state) => state.lanes);
+    const { lanes, findLane } = useTagsStore();
 
-    const handleSubmit = () => {
-        if (!nickname.trim()) return;
+    const handleSubmit = async () => {
+        if (!formData.nickname.trim()) return;
+
+        const commonData = {
+            nickname: formData.nickname.trim(),
+            image_url: (formData.useCustomImage && formData.imageUrl?.trim()) ? formData.imageUrl.trim() : DEFAULT_IMAGE,
+            lane: findLane(formData.laneId),
+        };
 
         if (createMode) {
-            createPlayer({
-                nickname: nickname.trim(),
+            await createPlayer({
+                ...commonData,
                 team_id: teamId,
-                image_url: (useCustomImage && imageUrl?.trim()) ? imageUrl.trim() : DEFAULT_IMAGE,
-                lane_id: laneId,
-            }, {
-                onSuccess: () => {
-                    if (ref && typeof ref !== 'function' && ref.current) {
-                        ref.current.close();
-                    }
-                }
+                match_id: currentMatch?.id ?? '',
             });
         } else {
-            updatePlayer({
-                id: player.id,
-                nickname: nickname.trim(),
-                image_url: (useCustomImage && imageUrl?.trim()) ? imageUrl.trim() : DEFAULT_IMAGE,
-                lane_id: laneId,
-            }, {
-                onSuccess: () => {
-                    if (ref && typeof ref !== 'function' && ref.current) {
-                        ref.current.close();
-                    }
-                }
-            });
+            await updatePlayer({ ...commonData, id: player.id });
+        }
+
+        if (ref && typeof ref !== 'function' && ref.current) {
+            ref.current.close();
         }
     };
 
     const handleRestoreDefault = () => {
-        setUseCustomImage(false);
-        setImageUrl('');
+        setFormData(prev => ({ ...prev, useCustomImage: false, imageUrl: '' }));
     };
 
-    // Reset state when player changes
-    useEffect(() => {
-        const isDefault = !player.image_url || player.image_url === DEFAULT_IMAGE;
-        setNickname(player.nickname);
-        setImageUrl(isDefault ? '' : player.image_url);
-        setUseCustomImage(!isDefault);
-    }, [player]);
 
     return (
         <ModalLayout ref={ref}>
@@ -116,8 +99,8 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                     </h2>
                     <input
                         type="text"
-                        value={nickname}
-                        onChange={(e) => setNickname(e.target.value)}
+                        value={formData.nickname}
+                        onChange={(e) => setFormData(prev => ({ ...prev, nickname: e.target.value }))}
                         placeholder="Enter player nickname"
                         className="
                             w-full
@@ -153,10 +136,10 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                             <Option
                                 key={lane.id}
                                 option={lane.name}
-                                valueSelected={laneId}
+                                valueSelected={formData.laneId}
                                 value={lane.id}
                                 onClick={() => {
-                                    setLaneId(lane.id);
+                                    setFormData(prev => ({ ...prev, laneId: lane.id }));
                                 }}
                             />
                         ))}
@@ -177,7 +160,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                             />
                             Image
                         </h2>
-                        {useCustomImage ? (
+                        {formData.useCustomImage ? (
                             <button
                                 onClick={handleRestoreDefault}
                                 className="
@@ -192,7 +175,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                             </button>
                         ) : (
                             <button
-                                onClick={() => setUseCustomImage(true)}
+                                onClick={() => setFormData(prev => ({ ...prev, useCustomImage: true }))}
                                 className="
                                     text-xs text-cyan-400 hover:text-cyan-300
                                     uppercase tracking-wider font-semibold
@@ -206,11 +189,11 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                         )}
                     </div>
 
-                    {useCustomImage ? (
+                    {formData.useCustomImage ? (
                         <input
                             type="text"
-                            value={imageUrl}
-                            onChange={(e) => setImageUrl(e.target.value)}
+                            value={formData.imageUrl}
+                            onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
                             placeholder="https://example.com/image.jpg"
                             className="
                                 w-full
@@ -245,7 +228,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                         </p>
                         <div className="w-24 h-24 overflow-hidden rounded-lg border border-slate-700 bg-slate-800">
                             <img
-                                src={useCustomImage && imageUrl ? imageUrl : DEFAULT_IMAGE}
+                                src={formData.useCustomImage && formData.imageUrl ? formData.imageUrl : DEFAULT_IMAGE}
                                 alt="Preview"
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -262,7 +245,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={!nickname.trim() || isPending || isPendingCreatePlayer}
+                    disabled={!formData.nickname.trim()}
                     className={`
                         w-full py-3 md:py-4
                         text-lg font-bold uppercase 
@@ -275,16 +258,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                         flex items-center justify-center gap-2
                     `}
                 >
-                    {(isPending || isPendingCreatePlayer) && (
-                        <Icon
-                            icon="line-md:loading-twotone-loop"
-                            className="text-2xl"
-                        />
-                    )}
-                    {(isPending || isPendingCreatePlayer) ?
-                        'Saving...' :
-                        (createMode ? 'Create Player' : 'Save Changes')
-                    }
+                    {createMode ? 'Create Player' : 'Save Changes'}
                 </button>
             </div>
         </ModalLayout>

@@ -1,20 +1,20 @@
+import { Panel } from "./Panel";
+
 interface WarningMessageProps {
     message?: string;
     title?: string;
-    fullScreen?: boolean;
     onAction?: () => void;
     actionLabel?: string;
 }
 
 export const WarningMessage = ({
-    message = "Advertencia",
-    title = "Atención",
-    fullScreen = false,
+    message = "Warning",
+    title = "Attention",
     onAction,
-    actionLabel = "Entendido"
+    actionLabel = "Understood"
 }: WarningMessageProps) => {
-    const content = (
-        <div className="flex flex-col items-center justify-center gap-4 text-center max-w-md px-6">
+    return (
+        <Panel>
             {/* Warning Icon */}
             <div className="relative">
                 <div className="w-20 h-20 rounded-full bg-yellow-500/20 border-2 border-yellow-500 flex items-center justify-center">
@@ -66,16 +66,6 @@ export const WarningMessage = ({
                     {actionLabel}
                 </button>
             )}
-        </div>
-    );
-
-    if (fullScreen) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                {content}
-            </div>
-        );
-    }
-
-    return content;
+        </Panel>
+    )
 };

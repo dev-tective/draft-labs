@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../supabaseClient';
-import { Game } from '../hooks/useMatches';
+import { Game } from '../hooks/useMatch';
 import { Tag } from './tagsStore';
 
 // Interface para la tabla heroes - ahora con lanes y roles completos
