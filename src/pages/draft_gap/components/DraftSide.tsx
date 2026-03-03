@@ -1,9 +1,9 @@
-import { DraftSlot } from "../../../stores/draftStore";
+
 import { DraftSlotCard } from "./DraftSlotCard";
 
 interface Props {
     className?: string;
-    draftSlots: DraftSlot[];
+    draftSlots: any[];
 }
 
 export const DraftSide = ({ className, draftSlots }: Props) => {

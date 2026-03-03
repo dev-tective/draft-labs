@@ -1,7 +1,6 @@
 import { Icon } from "@iconify/react";
 import { useHeroesStore } from "../../stores/heroesStore";
-import { Teams, useDraftStore } from "../../stores/draftStore";
-import { Tag, useTagsStore } from "@/stores/tagStore";
+import { Tag } from "@/stores/tagStore";
 
 interface TagOptionProps {
     tag: Tag;
@@ -9,21 +8,21 @@ interface TagOptionProps {
 
 const TagOption = ({ tag }: TagOptionProps) => {
     const { filterHeroesByLane } = useHeroesStore();
-    const { selectedLane } = useTagsStore();
+    // const { selectedLane } = useTagsStore();
 
     const handleSelectLane = () => {
-        filterHeroesByLane(tag.id === selectedLane ? 0 : tag.id);
+        // filterHeroesByLane(tag.id === selectedLane ? 0 : tag.id);
     }
 
     return (
         <button
-            className={`h-full aspect-[1.5/1] hover:bg-slate-700 transition-colors
-                cursor-pointer border-r border-slate-700 last:border-r-0
-                ${tag.id === selectedLane ? 'bg-slate-700' : ''}`}
-            title={tag.name}
+            // className={`h-full aspect-[1.5/1] hover:bg-slate-700 transition-colors
+            //     cursor-pointer border-r border-slate-700 last:border-r-0
+            //     ${tag.id === selectedLane ? 'bg-slate-700' : ''}`}
+            // title={tag.name}
             onClick={handleSelectLane}
         >
-            {tag.image ? (
+            {/* {tag.image ? (
                 <div className={`mx-auto h-full aspect-square scale-55
                         ${tag.id === selectedLane ? 'bg-slate-300' : 'bg-slate-400'}`}
                     style={{
@@ -35,21 +34,21 @@ const TagOption = ({ tag }: TagOptionProps) => {
                 />
             ) : (
                 <span>{tag.name}</span>
-            )}
+            )} */}
         </button>
     );
 }
 
 export const TagFilters = () => {
-    const {
-        resetDraft,
-        loading,
-        draftSlotManage: { activeTeam },
-        switchActiveTeam,
-    } = useDraftStore();
+    // const {
+    //     resetDraft,
+    //     loading,
+    //     draftSlotManage: { activeTeam },
+    //     switchActiveTeam,
+    // } = useDraftStore();
 
     const { setSearchQuery, searchQuery } = useHeroesStore();
-    const { lanes } = useTagsStore();
+    // const { lanes } = useTagsStore();
 
     return (
         <div className="flex flex-wrap w-full gap-2">
@@ -78,7 +77,7 @@ export const TagFilters = () => {
                 )}
             </label>
 
-            <div className="h-10 flex bg-slate-800 rounded-md border border-slate-700 overflow-hidden">
+            {/* <div className="h-10 flex bg-slate-800 rounded-md border border-slate-700 overflow-hidden">
                 {Object.values(Teams).map((team) => (
                     <button
                         key={team}
@@ -90,9 +89,9 @@ export const TagFilters = () => {
                         {team}
                     </button>
                 ))}
-            </div>
+            </div> */}
 
-            <div className="h-10 flex bg-slate-800 rounded-md border border-slate-700 overflow-hidden">
+            {/* <div className="h-10 flex bg-slate-800 rounded-md border border-slate-700 overflow-hidden">
                 {lanes.map((lane) => (
                     <TagOption key={lane.id} tag={lane} />
                 ))}
@@ -126,7 +125,7 @@ export const TagFilters = () => {
                         <span>Reset Draft</span>
                     </>
                 )}
-            </button>
+            </button> */}
         </div>
     );
 }

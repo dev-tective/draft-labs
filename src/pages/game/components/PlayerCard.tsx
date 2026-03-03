@@ -1,11 +1,11 @@
-import { Player } from "@/hooks/usePlayer";
+import { Player } from "@/stores/playerStore";
 
 interface Props {
     player: Player;
 }
 
 export const PlayerCard = ({ player }: Props) => {
-    const { nickname, lanes } = player;
+    const { nickname, lane } = player;
 
     return (
         <div className="
@@ -17,7 +17,7 @@ export const PlayerCard = ({ player }: Props) => {
             <div className="w-8 h-8 flex items-center justify-center overflow-hidden">
                 <div className={`mx-auto h-full aspect-square scale-75 bg-slate-300`}
                     style={{
-                        maskImage: `url(${lanes?.image || 'no.svg'})`,
+                        maskImage: `url(${lane?.image || 'no.svg'})`,
                         maskSize: 'cover',
                         maskPosition: 'center',
                         maskRepeat: 'no-repeat',

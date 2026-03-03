@@ -1,29 +1,27 @@
 import { Icon } from "@iconify/react";
-import { DraftSlot } from "../../../stores/draftStore";
-import { useDraftStore } from "../../../stores/draftStore";
 import { useHeroesStore } from "../../../stores/heroesStore";
 
 interface Props {
-    draftSlot: DraftSlot;
+    draftSlot: any;
 }
 
 export const DraftSlotCard = ({ draftSlot }: Props) => {
-    const { draftSlotManage: { selectedSlot }, setCurrentSlot, lockedSlot } = useDraftStore();
-    const { findHeroById } = useHeroesStore();
+    // const { draftSlotManage: { selectedSlot }, setCurrentSlot, lockedSlot } = useDraftStore();
+    // const { findHeroById } = useHeroesStore();
 
-    const hero = findHeroById(draftSlot.hero_id);
+    // const hero = findHeroById(draftSlot.hero_id);
 
     return (
         <div
             className="flex flex-col justify-between w-full h-full border-b-2 last:border-b-0 border-slate-700
                 text-slate-200 font-semibold relative"
-            style={{
-                backgroundImage: `url(${hero?.image_profile_url})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center 15%",
-            }}
+            // style={{
+            //     backgroundImage: `url(${hero?.image_profile_url})`,
+            //     backgroundSize: "cover",
+            //     backgroundPosition: "center 15%",
+            // }}
         >
-            <button
+            {/* <button
                 onClick={() => {
                     if (!draftSlot.is_locked) setCurrentSlot(draftSlot)
                 }}
@@ -56,7 +54,7 @@ export const DraftSlotCard = ({ draftSlot }: Props) => {
                 ) : (
                     <Icon icon="heroicons-solid:lock-open" />
                 )}
-            </button>
+            </button> */}
         </div>
     );
 };

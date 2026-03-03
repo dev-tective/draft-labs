@@ -5,9 +5,6 @@ import { Login } from "./pages/auth/Login";
 import { Layout } from "./layout/Layout";
 import { Match } from "./pages/match/Match";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { DraftPage } from "./pages/draft/DraftPage";
-import { GamesPage } from "./pages/game/GamesPage";
-import { DraftGap } from "./pages/draft_gap/DraftGap";
 
 function App() {
   return (

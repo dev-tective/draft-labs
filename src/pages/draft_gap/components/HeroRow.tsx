@@ -1,12 +1,11 @@
 import { Hero } from "../../../stores/heroesStore";
-import { useDraftStore } from "../../../stores/draftStore";
 
 export const HeroRow = ({ hero }: { hero: Hero }) => {
-    const { updateSlot } = useDraftStore();
+    // const { updateSlot } = useDraftStore();
 
     return (
         <tr
-            onClick={() => updateSlot({ hero_id: hero.id, is_locked: true })}
+            // onClick={() => updateSlot({ hero_id: hero.id, is_locked: true })}
             className="hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
             key={hero.id}
         >

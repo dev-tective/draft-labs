@@ -1,4 +1,5 @@
-import { Team } from "@/hooks/useTeam";
+
+import { Team } from "@/stores/teamStore";
 import { Icon } from "@iconify/react";
 import React, { forwardRef } from "react";
 
