@@ -1,32 +1,31 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { useMatches } from "@/hooks/useMatch";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-import { ErrorMessage } from "@/components/shared/ErrorMessage";
 import { useMatchStore } from "@/stores/matchStore";
 
 export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
     const [manualId, setManualId] = useState("");
-    const { data: matches, isLoading, error } = useMatches();
-    const { setCurrentMatchId } = useMatchStore();
+    const { matches, loading, subscribeToMatch, fetchMatches } = useMatchStore();
 
     const handleJoinById = () => {
         if (!manualId.trim()) return;
 
-        setCurrentMatchId(manualId.trim());
+        subscribeToMatch(manualId.trim());
 
         if (ref && typeof ref !== 'function' && ref.current) {
             ref.current.close();
+            setManualId("");
         }
     };
 
     const handleJoinMatch = (matchId: string) => {
         if (ref && typeof ref !== 'function' && ref.current) {
             ref.current.close();
+            setManualId("");
         }
 
-        setCurrentMatchId(matchId);
+        subscribeToMatch(matchId);
     };
 
     return (
@@ -114,30 +113,41 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
 
                 {/* Matches List */}
                 <div className="space-y-4 flex-1 overflow-hidden flex flex-col custom-scrollbar">
-                    <h2 className="
-                        flex items-center
-                        text-xs md:text-sm 
-                        text-slate-200 uppercase tracking-widest
-                    ">
-                        <Icon
-                            icon="fluent:people-team-20-filled"
-                            className="text-lg md:text-2xl mr-3 text-cyan-400"
-                        />
-                        Available Matches
-                    </h2>
+                    <div className="flex justify-between items-center">
+                        <h2 className="
+                            flex items-center
+                            text-xs md:text-sm 
+                            text-slate-200 uppercase tracking-widest
+                        ">
+                            <Icon
+                                icon="fluent:people-team-20-filled"
+                                className="text-lg md:text-2xl mr-3 text-cyan-400"
+                            />
+                            Available Matches
+                        </h2>
+                        <button
+                            onClick={() => fetchMatches()}
+                            disabled={loading}
+                            className="
+                                flex items-center gap-2
+                                text-xs uppercase font-bold tracking-wider
+                                text-slate-400 hover:text-cyan-400
+                                transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                            "
+                        >
+                            <Icon
+                                icon="ri:refresh-line"
+                                className={`text-lg md:text-xl ${loading ? 'animate-spin' : ''}`}
+                            />
+                            Refresh
+                        </button>
+                    </div>
 
-                    {isLoading ? (
+                    {loading ? (
                         <div className="flex justify-center items-center py-10">
                             <LoadingSpinner message="Loading matches..." />
                         </div>
-                    ) : error ? (
-                        <div className="flex justify-center items-center py-10">
-                            <ErrorMessage
-                                title="Error loading matches"
-                                message={error.message}
-                            />
-                        </div>
-                    ) : !matches || matches.length === 0 ? (
+                    ) : matches.length === 0 ? (
                         <div className="text-center py-10 text-slate-500">
                             <Icon icon="mdi:inbox" className="text-6xl mx-auto mb-4" />
                             <p className="text-sm uppercase tracking-wider">
@@ -149,7 +159,15 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
                             {matches.map((match) => (
                                 <div
                                     key={match.id}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => handleJoinMatch(match.id)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            handleJoinMatch(match.id);
+                                        }
+                                    }}
                                     className="
                                         p-4
                                         bg-slate-900/30

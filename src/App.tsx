@@ -34,7 +34,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
+        {/* <Route
           path="/games"
           element={
             <ProtectedRoute>
@@ -55,7 +55,7 @@ function App() {
           element={
             <DraftGap />
           }
-        />
+        /> */}
       </Routes>
     </BrowserRouter>
   );

@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { Game } from "../hooks/useMatch";
 import { supabase } from "../supabaseClient";
+import { Game } from "./matchStore";
 
 export interface Tag {
     id: number;
@@ -25,7 +25,7 @@ interface TagsStore {
     findMap: (id: number) => Tag | undefined;
 }
 
-export const useTagsStore = create<TagsStore>((set, get) => ({
+export const useTagStore = create<TagsStore>((set, get) => ({
     lanes: [],
     maps: [],
     selectedLane: 0,

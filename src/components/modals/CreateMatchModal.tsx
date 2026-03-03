@@ -1,9 +1,7 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { Game } from "@/hooks/useMatch";
-import { useCreateMatch } from "@/hooks/useMatch";
-import { useMatchStore } from "@/stores/matchStore";
+import { Game, useMatchStore } from "@/stores/matchStore";
 import { Option } from "@/components/Option";
 
 interface SectionProps {
@@ -51,23 +49,18 @@ export const CreateMatchModal = forwardRef<ModalRef, {}>((_props, ref) => {
     const bansValues = [0, 3, 5, 7];
     const bansIndex = bansValues.indexOf(bansPerTeam);
 
-    // const navigate = useNavigate();
-    const { mutateAsync: createMatch, isPending: loading } = useCreateMatch();
-    const { setCurrentMatchId } = useMatchStore();
+    const { createMatch, loading } = useMatchStore();
 
     const handleSubmit = async () => {
         if (!selectedGame) return;
 
-        const match = await createMatch({
+        await createMatch({
             best_of: bestOf,
             bans_per_team: bansPerTeam,
             game: selectedGame,
         });
 
-        // Add to recent matches
-        setCurrentMatchId(match.id);
-
-        // Close modal
+        // createMatch → subscribeToMatch se activa automáticamente dentro del store
         if (ref && typeof ref !== 'function' && ref.current) {
             ref.current.close();
         }

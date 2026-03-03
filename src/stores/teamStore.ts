@@ -18,6 +18,7 @@ interface TeamState {
     teams: Team[];
     channel: RealtimeChannel | null;
     loading: boolean;
+    updateLoading: boolean;
 
     createTeam: (params: Partial<Team>, players?: Partial<Player>[]) => Promise<void>;
     updateTeam: (params: Partial<Team>) => Promise<void>;
@@ -31,6 +32,7 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     teams: [],
     channel: null,
     loading: false,
+    updateLoading: false,
 
     createTeam: async (params: Partial<Team>, players?: Partial<Player>[]) => {
         const { data, error } = await supabase.rpc('create_team_with_players', {
@@ -44,15 +46,14 @@ export const useTeamStore = create<TeamState>((set, get) => ({
 
         if (error) {
             useAlertStore.getState().addAlert({
-                message: 'Error creating team',
+                message: error.message,
                 type: AlertType.ERROR,
             });
             return;
         }
 
-        // El canal realtime recibe el INSERT y actualiza teams[] automáticamente
         useAlertStore.getState().addAlert({
-            message: 'Team created successfully',
+            message: `Team "${params.name}" created`,
             type: AlertType.SUCCESS,
         });
 
@@ -60,6 +61,7 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     },
 
     updateTeam: async (params: Partial<Team>) => {
+        set({ updateLoading: true });
         const { id, match_id: _match_id, ...updateData } = params;
 
         const { error } = await supabase
@@ -69,17 +71,17 @@ export const useTeamStore = create<TeamState>((set, get) => ({
 
         if (error) {
             useAlertStore.getState().addAlert({
-                message: 'Error updating team',
+                message: error.message,
                 type: AlertType.ERROR,
             });
-            return;
+        } else {
+            useAlertStore.getState().addAlert({
+                message: `Team "${updateData.name}" updated`,
+                type: AlertType.SUCCESS,
+            });
         }
 
-        // El canal realtime recibe el UPDATE y actualiza teams[] automáticamente
-        useAlertStore.getState().addAlert({
-            message: 'Team updated successfully',
-            type: AlertType.SUCCESS,
-        });
+        set({ updateLoading: false });
     },
 
     deleteTeam: (teamId: string) => {
@@ -95,13 +97,18 @@ export const useTeamStore = create<TeamState>((set, get) => ({
 
                 if (error) {
                     useAlertStore.getState().addAlert({
-                        message: 'Error deleting team',
+                        message: error.message,
                         type: AlertType.ERROR,
                     });
-                    return;
                 }
 
-                // El canal realtime recibe el DELETE y actualiza teams[] automáticamente
+                // Eliminar del estado local inmediatamente.
+                // El evento DELETE de Realtime con filtros no es confiable
+                // sin REPLICA IDENTITY FULL en la tabla.
+                set((state) => ({
+                    teams: state.teams.filter((t) => t.id !== teamId),
+                }));
+
                 useAlertStore.getState().addAlert({
                     message: 'Team deleted successfully',
                     type: AlertType.SUCCESS,
@@ -134,23 +141,34 @@ export const useTeamStore = create<TeamState>((set, get) => ({
                     console.log("[TeamStore] Realtime event:", payload);
 
                     if (payload.eventType === "INSERT") {
+                        const team = payload.new as Team;
                         set((state) => ({
-                            teams: [...state.teams, payload.new as Team],
+                            teams: [...state.teams, team],
                         }));
+                        useAlertStore.getState().addAlert({
+                            message: `Team "${team.name}" was added`,
+                            type: AlertType.INFO,
+                        });
                     } else if (payload.eventType === "UPDATE") {
+                        const team = payload.new as Team;
                         set((state) => ({
                             teams: state.teams.map((t) =>
-                                t.id === (payload.new as Team).id
-                                    ? (payload.new as Team)
-                                    : t
+                                t.id === team.id ? team : t
                             ),
                         }));
+                        useAlertStore.getState().addAlert({
+                            message: `Team "${team.name}" was updated`,
+                            type: AlertType.INFO,
+                        });
                     } else if (payload.eventType === "DELETE") {
+                        const team = payload.old as Team;
                         set((state) => ({
-                            teams: state.teams.filter(
-                                (t) => t.id !== (payload.old as Team).id
-                            ),
+                            teams: state.teams.filter((t) => t.id !== team.id),
                         }));
+                        useAlertStore.getState().addAlert({
+                            message: `A team was removed`,
+                            type: AlertType.INFO,
+                        });
                     }
                 }
             )

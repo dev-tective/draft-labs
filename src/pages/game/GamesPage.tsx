@@ -7,7 +7,7 @@ import { usePicksStore } from "@/stores/picksStore";
 import { useEffect, useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { TagSelect } from "../../components/TagSelect";
-import { useTagsStore } from "@/stores/tagsStore";
+import { useTagsStore } from "@/stores/tagStore";
 import { TeamDrag } from "./components/TeamDrag";
 import { useMatch } from "@/hooks/useMatch";
 import { DragDropProvider } from "@dnd-kit/react";
@@ -48,7 +48,7 @@ const GameContent = () => {
                             initialValue={game.winner_team_id || null}
                             onUpdate={(winnerTeamId) => {
                                 if (winnerTeamId === game.winner_team_id) return;
-                                
+
                                 updateGame({
                                     id: currentGameId,
                                     match_id: currentMatchId,

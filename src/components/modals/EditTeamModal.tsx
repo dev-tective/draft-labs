@@ -27,7 +27,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
         setForm(buildForm(team));
     }, [team]);
 
-    const { updateTeam } = useTeamStore();
+    const { updateTeam, updateLoading } = useTeamStore();
 
     const handleSubmit = async () => {
         if (!name.trim() || !acronym.trim()) return;
@@ -271,7 +271,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={!name.trim() || !acronym.trim()}
+                    disabled={!name.trim() || !acronym.trim() || updateLoading}
                     className={`
                         w-full py-3 md:py-4
                         text-lg font-bold uppercase 
@@ -284,7 +284,8 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                         flex items-center justify-center gap-2
                     `}
                 >
-                    Save Changes
+                    {updateLoading && <Icon icon="mdi:loading" className="animate-spin text-xl" />}
+                    {updateLoading ? 'Saving...' : 'Save Changes'}
                 </button>
             </div>
         </ModalLayout>

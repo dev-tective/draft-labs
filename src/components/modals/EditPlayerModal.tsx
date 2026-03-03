@@ -3,7 +3,7 @@ import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "../../layout/ModalLayout";
 import { Player, usePlayerStore } from "@/stores/playerStore";
 import { useMatchStore } from "@/stores/matchStore";
-import { useTagsStore } from "@/stores/tagsStore";
+import { useTagStore } from "@/stores/tagStore";
 import { Option } from "@/components/Option";
 import DEFAULT_IMAGE from "@/assets/ui/silueta.png";
 
@@ -19,14 +19,14 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
     const [formData, setFormData] = useState({
         nickname: player.nickname,
         imageUrl: isDefaultInitial ? '' : player.image_url,
-        laneId: player.lane?.id ?? 0,
+        lane: player.lane,
         useCustomImage: !isDefaultInitial
     });
 
     const { currentMatch } = useMatchStore();
     const { createPlayer, updatePlayer } = usePlayerStore();
 
-    const { lanes, findLane } = useTagsStore();
+    const { lanes, findLane } = useTagStore();
 
     const handleSubmit = async () => {
         if (!formData.nickname.trim()) return;
@@ -34,7 +34,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
         const commonData = {
             nickname: formData.nickname.trim(),
             image_url: (formData.useCustomImage && formData.imageUrl?.trim()) ? formData.imageUrl.trim() : DEFAULT_IMAGE,
-            lane: findLane(formData.laneId),
+            lane: findLane(formData.lane?.id ?? 0),
         };
 
         if (createMode) {
@@ -136,10 +136,10 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                             <Option
                                 key={lane.id}
                                 option={lane.name}
-                                valueSelected={formData.laneId}
+                                valueSelected={formData.lane?.id ?? 0}
                                 value={lane.id}
                                 onClick={() => {
-                                    setFormData(prev => ({ ...prev, laneId: lane.id }));
+                                    setFormData(prev => ({ ...prev, lane: lane }));
                                 }}
                             />
                         ))}

@@ -3,57 +3,92 @@ import { Icon } from "@iconify/react";
 import { EditTeamModal } from "@/components/modals/EditTeamModal";
 import { CreateTeamModal } from "@/components/modals/CreateTeamModal";
 import { ModalRef } from "@/layout/ModalLayout";
-import { Player } from "@/pages/match/components/Player";
 import { EditPlayerModal } from "@/components/modals/EditPlayerModal";
 import { useTeamStore } from "@/stores/teamStore";
 import { usePlayerStore } from "@/stores/playerStore";
 import { useMatchStore } from "@/stores/matchStore";
+import { useAlertStore, AlertType } from "@/stores/alertStore";
 import DEFAULT_LOGO from "@/assets/ui/shield.svg";
 import { DragDropProvider, useDragDropMonitor, useDroppable } from "@dnd-kit/react";
+import { isSortable } from "@dnd-kit/react/sortable";
 import { Player as PlayerType } from "@/stores/playerStore";
 import { Team as TeamType } from "@/stores/teamStore";
+import { useShallow } from "zustand/react/shallow";
+import { Player, PlayerSortable } from "./Player";
 
 interface Props {
     index: number;
     reverse?: boolean;
 }
 
-const ActiveZoneMonitor = ({
-    droppableId,
-    teamId,
-}: {
-    droppableId: string;
-    teamId: string;
-}) => {
+const SortableZone = ({ teamId }: { teamId: string }) => {
     const { updatePlayer } = usePlayerStore();
+    const players = usePlayerStore(
+        useShallow((state) =>
+            state.players.filter((p) => p.team_id === teamId && p.is_active)
+        )
+    );
 
+    // Si un jugador activo se suelta fuera de cualquier target → desactivar
     useDragDropMonitor({
-        onDragEnd(event) {
-            const { operation, canceled } = event;
-            if (canceled) return;
+        onDragEnd({ operation, canceled }) {
+            if (canceled || !isSortable(operation.source)) return;
 
-            if (operation.target?.id === droppableId) {
-                const droppedPlayer = operation.source?.data?.player as PlayerType | undefined;
-                if (droppedPlayer && !droppedPlayer.is_active) {
-                    updatePlayer({ id: droppedPlayer.id, is_active: true, team_id: teamId });
-                }
+            const player = operation.source?.data?.player as PlayerType | undefined;
+            if (!player || player.team_id !== teamId) return;
+
+            // target === null significa que se soltó fuera de todo droppable/sortable
+            if (operation.target === null) {
+                updatePlayer({ id: player.id, is_active: false });
             }
-        }
+        },
     });
 
-    return null;
+    return (
+        <div className="flex flex-col gap-2">
+            {players.map((player, index) => (
+                <PlayerSortable key={player.id} player={player} index={index} />
+            ))}
+        </div>
+    );
 };
 
 const ActiveZone = ({ teamId, droppableId }: { teamId: string; droppableId: string }) => {
     const { ref, isDropTarget } = useDroppable({ id: droppableId });
-    const players = usePlayerStore((state) =>
-        state.players.filter((p) => p.team_id === teamId && p.is_active)
-    );
+    const { updatePlayer } = usePlayerStore();
+
+    const activeCount = usePlayerStore.getState().players
+        .filter(p => p.team_id === teamId && p.is_active).length;
+
+    useDragDropMonitor({
+        onDragEnd({ operation, canceled }) {
+            if (canceled) return;
+
+            const player = operation.source?.data?.player as PlayerType | undefined;
+            if (!player || `player_actives_${player.team_id}` !== droppableId) return;
+
+            if (operation.target?.id !== droppableId) return;
+            if (player.is_active) return;
+
+            if (activeCount >= 5) {
+                useAlertStore.getState().addAlert({
+                    message: 'A team can have a maximum of 5 active players',
+                    type: AlertType.WARNING,
+                });
+                return;
+            }
+
+            updatePlayer({ id: player.id, is_active: true });
+        }
+    });
 
     return (
-        <div
-            ref={ref}
-            className={`
+        <div className="flex flex-col gap-2">
+            <div className="text-slate-200 uppercase font-bold flex justify-between">
+                <span>Active Players</span>
+                <span className="tracking-widest">{activeCount}/5</span>
+            </div>
+            <div className={`
                 min-h-12 rounded-lg border-2 border-dashed
                 flex flex-col gap-2 p-2
                 transition-colors duration-200
@@ -61,36 +96,41 @@ const ActiveZone = ({ teamId, droppableId }: { teamId: string; droppableId: stri
                     ? 'border-cyan-400 bg-cyan-400/10'
                     : 'border-slate-700 bg-slate-800/20'
                 }
-            `}
-        >
-            {players.map((player, index) => (
-                <Player key={player.id} player={player} index={index} />
-            ))}
-            {(isDropTarget || players.length === 0) && (
-                <span className={`
-                    text-xs uppercase tracking-widest
-                    text-center py-1
-                    ${isDropTarget ? 'text-cyan-400' : 'text-slate-600'}
-                `}>
-                    {isDropTarget ? 'Soltar para activar' : 'Arrastra aquí para activar'}
-                </span>
-            )}
+            `}>
+                <SortableZone teamId={teamId} />
+
+                {(activeCount < 5) && (
+                    <span
+                        ref={ref}
+                        className={`
+                        h-15 content-center
+                        text-xs font-bold 
+                        uppercase tracking-widest
+                        text-center
+                        ${isDropTarget ? 'text-cyan-400' : 'text-slate-400'}
+                    `}
+                    >
+                        {isDropTarget ? 'Release to activate' : 'Drag here to activate'}
+                    </span>
+                )}
+            </div>
         </div>
     );
 };
 
 const TeamPlayers = ({ team }: { team: TeamType }) => {
     const droppableId = `player_actives_${team.id}`;
-    const inactivePlayers = usePlayerStore((state) =>
-        state.players.filter((p) => p.team_id === team.id && !p.is_active)
+    const inactivePlayers = usePlayerStore(
+        useShallow((state) =>
+            state.players.filter((p) => p.team_id === team.id && !p.is_active)
+        )
     );
 
     return (
         <DragDropProvider>
-            <ActiveZoneMonitor droppableId={droppableId} teamId={team.id} />
             <ActiveZone teamId={team.id} droppableId={droppableId} />
-            {inactivePlayers.map((player, index) => (
-                <Player key={player.id} player={player} index={index} />
+            {inactivePlayers.map((player) => (
+                <Player key={player.id} player={player} />
             ))}
         </DragDropProvider>
     );

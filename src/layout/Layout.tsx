@@ -29,7 +29,7 @@ const NavOption = ({ icon, label, href = "#", locked = false }: NavOptionProps) 
                 <div className="relative">
                     <Icon
                         icon={icon}
-                        className="text-5xl lg:text-4xl"
+                        className="text-3xl lg:text-4xl"
                     />
                     <Icon
                         icon="material-symbols:lock"
@@ -57,7 +57,7 @@ const NavOption = ({ icon, label, href = "#", locked = false }: NavOptionProps) 
         >
             <Icon
                 icon={icon}
-                className="text-5xl lg:text-4xl"
+                className="text-3xl lg:text-4xl"
             />
             <span className="hidden lg:block text-sm uppercase tracking-widest">
                 {label}
@@ -74,8 +74,8 @@ const MENU_ITEMS = [
 ];
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
-    const currentMatchId = useMatchStore(state => state.currentMatchId);
-    const hasActiveMatch = !!currentMatchId;
+    const currentMatch = useMatchStore(state => state.currentMatch);
+    const hasActiveMatch = !!currentMatch?.id;
 
     return (
         <div className="
@@ -84,7 +84,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             bg-slate-950 scanline
         ">
             <AlertContainer />
-            
+
             <aside className="
                 flex flex-col items-center
                 border-t md:border-t-0 md:border-r 

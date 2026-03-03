@@ -2,6 +2,7 @@ import { supabase } from "@/supabaseClient";
 import { AlertType, useAlertStore } from "@/stores/alertStore";
 import { useTeamStore } from "@/stores/teamStore";
 import { usePlayerStore } from "@/stores/playerStore";
+import { useTagStore } from "@/stores/tagStore";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -25,6 +26,7 @@ interface MatchState {
     currentMatch: Match | null;
     channel: RealtimeChannel | null;
     loading: boolean;
+    updateLoading: boolean;
 
     fetchMatches: () => Promise<void>;
     createMatch: (params: Partial<Match>) => Promise<void>;
@@ -42,9 +44,10 @@ export const useMatchStore = create<MatchState>()(
             currentMatch: null,
             channel: null,
             loading: false,
+            updateLoading: false,
 
             fetchMatches: async () => {
-                set({ loading: true });
+                set({ loading: true, matches: [] });
 
                 const { data: { user } } = await supabase.auth.getUser();
 
@@ -118,6 +121,8 @@ export const useMatchStore = create<MatchState>()(
             },
 
             updateMatch: async (params: Partial<Match>) => {
+                set({ updateLoading: true });
+
                 const { id, ...updateData } = params;
 
                 const { error } = await supabase
@@ -127,17 +132,12 @@ export const useMatchStore = create<MatchState>()(
 
                 if (error) {
                     useAlertStore.getState().addAlert({
-                        message: 'Error updating match',
+                        message: error.message,
                         type: AlertType.ERROR
                     });
-                    return;
                 }
 
-                // El canal realtime recibe el UPDATE y actualiza currentMatch automáticamente
-                useAlertStore.getState().addAlert({
-                    message: 'Match updated successfully',
-                    type: AlertType.SUCCESS,
-                });
+                set({ updateLoading: false });
             },
 
             deleteMatch: async (matchId: string) => {
@@ -148,6 +148,11 @@ export const useMatchStore = create<MatchState>()(
                     handleAction: async () => {
                         set({ loading: true });
 
+                        // Cerrar team/player canales ANTES de borrar para evitar
+                        // las notificaciones en cascada de teams y players eliminados
+                        useTeamStore.getState().unsubscribe();
+                        usePlayerStore.getState().unsubscribe();
+
                         const { error } = await supabase
                             .from('matches')
                             .delete()
@@ -155,14 +160,13 @@ export const useMatchStore = create<MatchState>()(
 
                         if (error) {
                             useAlertStore.getState().addAlert({
-                                message: 'Error deleting match',
+                                message: error.message,
                                 type: AlertType.ERROR
                             });
                             set({ loading: false });
                             return;
                         }
 
-                        // Cortar el canal realtime y limpiar el match actual
                         const channel = get().channel;
                         if (channel) channel.unsubscribe();
 
@@ -182,7 +186,6 @@ export const useMatchStore = create<MatchState>()(
             },
 
             subscribeToMatch: (matchId: string) => {
-                // Unsubscribe from previous channel if exists
                 const currentChannel = get().channel;
                 if (currentChannel) {
                     currentChannel.unsubscribe();
@@ -190,11 +193,9 @@ export const useMatchStore = create<MatchState>()(
 
                 set({ loading: true, currentMatch: null });
 
-                // Activar realtime en team y player store con el mismo matchId
-                useTeamStore.getState().subscribeToMatch(matchId);
-                usePlayerStore.getState().subscribeToMatch(matchId);
+                const alreadyInList = get().matches.some((m) => m.id === matchId);
 
-                // Create a new realtime channel filtered by match id
+                // Canal realtime para el match (REPLICA IDENTITY FULL activo)
                 const channel = supabase
                     .channel(`match:id=eq.${matchId}`)
                     .on(
@@ -206,16 +207,34 @@ export const useMatchStore = create<MatchState>()(
                             filter: `id=eq.${matchId}`,
                         },
                         (payload) => {
-                            console.log("[MatchStore] Realtime event:", payload);
-
                             if (payload.eventType === "UPDATE") {
                                 set((state) => ({
                                     currentMatch: state.currentMatch
                                         ? { ...state.currentMatch, ...(payload.new as Partial<Match>) }
                                         : (payload.new as Match),
+                                    matches: state.matches.map((m) =>
+                                        m.id === matchId
+                                            ? { ...m, ...(payload.new as Partial<Match>) }
+                                            : m
+                                    ),
                                 }));
+                                useAlertStore.getState().addAlert({
+                                    message: 'Match settings were updated',
+                                    type: AlertType.INFO,
+                                });
                             } else if (payload.eventType === "DELETE") {
-                                set({ currentMatch: null });
+                                // Cerrar team/player canales antes de que lleguen sus DELETE en cascada
+                                useTeamStore.getState().unsubscribe();
+                                usePlayerStore.getState().unsubscribe();
+
+                                set((state) => ({
+                                    currentMatch: null,
+                                    matches: state.matches.filter((m) => m.id !== matchId),
+                                }));
+                                useAlertStore.getState().addAlert({
+                                    message: 'This match was deleted',
+                                    type: AlertType.INFO,
+                                });
                             }
                         }
                     )
@@ -223,7 +242,10 @@ export const useMatchStore = create<MatchState>()(
 
                 set({ channel });
 
-                // Load the initial match data
+                useTeamStore.getState().subscribeToMatch(matchId);
+                usePlayerStore.getState().subscribeToMatch(matchId);
+
+                // Carga inicial — también resuelve el caso de match compartido
                 supabase
                     .from("matches")
                     .select('*')
@@ -231,11 +253,35 @@ export const useMatchStore = create<MatchState>()(
                     .single()
                     .then(({ data, error }) => {
                         if (error) {
-                            console.error("[MatchStore] Error loading match:", error);
-                        } else {
-                            set({ currentMatch: data as Match });
+                            useAlertStore.getState().addAlert({
+                                message: 'Match not found or access denied',
+                                type: AlertType.ERROR,
+                            });
+                            set({ loading: false });
+                            return;
                         }
-                        set({ loading: false });
+
+                        const match = data as Match;
+
+                        if (match.game) {
+                            useTagStore.getState().getLanes(match.game);
+                            useTagStore.getState().getMaps(match.game);
+                        }
+
+                        set((state) => ({
+                            currentMatch: match,
+                            loading: false,
+                            // Si era un match de otro usuario, agregarlo a la lista
+                            matches: alreadyInList
+                                ? state.matches
+                                : (() => {
+                                    useAlertStore.getState().addAlert({
+                                        message: 'Subscribed to shared match',
+                                        type: AlertType.SUCCESS,
+                                    });
+                                    return [match, ...state.matches];
+                                })(),
+                        }));
                     });
             },
 
@@ -243,11 +289,11 @@ export const useMatchStore = create<MatchState>()(
             closeChannel: () => {
                 const channel = get().channel;
                 if (channel) {
+                    useTeamStore.getState().closeChannel();
+                    usePlayerStore.getState().closeChannel();
                     channel.unsubscribe();
                     set({ channel: null });
                 }
-                useTeamStore.getState().closeChannel();
-                usePlayerStore.getState().closeChannel();
             },
 
             // Reset completo — para usar al desmontar la página
@@ -263,10 +309,26 @@ export const useMatchStore = create<MatchState>()(
             name: 'match-storage',
             partialize: (state) => ({
                 currentMatch: state.currentMatch,
+                matches: state.matches,
             }),
             onRehydrateStorage: () => (state) => {
-                // Al rehidratar el store (carga de página), traer los matches automáticamente
-                state?.fetchMatches();
+                if (!state) return;
+
+                // Validar si el match persistido sigue vigente
+                const match = state.currentMatch;
+                if (match) {
+                    const isExpired = new Date(match.expires_at) <= new Date();
+                    if (isExpired) {
+                        console.log('[MatchStore] Match persistido expirado, limpiando...');
+                        state.currentMatch = null;
+                    } else {
+                        console.log('[MatchStore] Match persistido vigente:', match.id);
+                        // Match.tsx lo activará vía subscribeToMatch en su useEffect
+                    }
+                }
+
+                // Refrescar la lista de matches en background
+                state.fetchMatches();
             },
         }
     )

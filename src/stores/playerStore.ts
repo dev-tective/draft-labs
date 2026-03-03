@@ -2,7 +2,7 @@ import { supabase } from "@/supabaseClient";
 import { AlertType, useAlertStore } from "@/stores/alertStore";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { create } from "zustand";
-import { Tag } from "./tagsStore";
+import { Tag } from "./tagStore";
 
 export interface Player {
     id: string;
@@ -48,15 +48,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
         if (error) {
             useAlertStore.getState().addAlert({
-                message: 'Error creating player',
+                message: error.message,
                 type: AlertType.ERROR,
             });
             return;
         }
 
-        // El canal realtime recibe el INSERT y actualiza players[] automáticamente
         useAlertStore.getState().addAlert({
-            message: 'Player created successfully',
+            message: `Player "${data.nickname}" created`,
             type: AlertType.SUCCESS,
         });
 
@@ -78,17 +77,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
         if (error) {
             useAlertStore.getState().addAlert({
-                message: 'Error updating player',
+                message: error.message,
                 type: AlertType.ERROR,
             });
-            return;
         }
-
-        // El canal realtime recibe el UPDATE y actualiza players[] automáticamente
-        useAlertStore.getState().addAlert({
-            message: 'Player updated successfully',
-            type: AlertType.SUCCESS,
-        });
     },
 
     deletePlayer: (playerId: string) => {
@@ -104,13 +96,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
                 if (error) {
                     useAlertStore.getState().addAlert({
-                        message: 'Error deleting player',
+                        message: error.message,
                         type: AlertType.ERROR,
                     });
                     return;
                 }
 
-                // El canal realtime recibe el DELETE y actualiza players[] automáticamente
                 useAlertStore.getState().addAlert({
                     message: 'Player deleted successfully',
                     type: AlertType.SUCCESS,
@@ -143,23 +134,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
                     console.log("[PlayerStore] Realtime event:", payload);
 
                     if (payload.eventType === "INSERT") {
+                        const player = payload.new as Player;
                         set((state) => ({
-                            players: [...state.players, payload.new as Player],
+                            players: [...state.players, player],
                         }));
+                        useAlertStore.getState().addAlert({
+                            message: `Player "${player.nickname}" was added`,
+                            type: AlertType.INFO,
+                        });
                     } else if (payload.eventType === "UPDATE") {
+                        const player = payload.new as Player;
                         set((state) => ({
                             players: state.players.map((p) =>
-                                p.id === (payload.new as Player).id
-                                    ? (payload.new as Player)
-                                    : p
+                                p.id === player.id ? player : p
                             ),
                         }));
+                        useAlertStore.getState().addAlert({
+                            message: `Player "${player.nickname}" was updated`,
+                            type: AlertType.INFO,
+                        });
                     } else if (payload.eventType === "DELETE") {
+                        const player = payload.old as Player;
                         set((state) => ({
-                            players: state.players.filter(
-                                (p) => p.id !== (payload.old as Player).id
-                            ),
+                            players: state.players.filter((p) => p.id !== player.id),
                         }));
+                        useAlertStore.getState().addAlert({
+                            message: `A player was removed`,
+                            type: AlertType.INFO,
+                        });
                     }
                 }
             )
@@ -170,9 +172,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         // Load initial players for this match
         supabase
             .from("players")
-            .select("*, lanes(*)")
+            .select("*")
             .eq("match_id", matchId)
-            .order("created_at", { ascending: true })
             .then(({ data, error }) => {
                 if (error) {
                     console.error("[PlayerStore] Error loading players:", error);
@@ -183,7 +184,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             });
     },
 
-    // Cierra el canal sin limpiar players — para cleanup de useEffect
     closeChannel: () => {
         const channel = get().channel;
         if (channel) {

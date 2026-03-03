@@ -15,11 +15,11 @@ import { TagSelect } from "../../components/TagSelect";
 import { Team } from "@/pages/match/components/Team";
 
 const MatchContent = () => {
-    const { currentMatch, updateMatch, deleteMatch } = useMatchStore();
+    const { currentMatch, updateMatch, deleteMatch, updateLoading } = useMatchStore();
 
-    const [bansPerTeam, setBansPerTeam] = useState(currentMatch?.bans_per_team ?? 3);
-    const [bestOf, setBestOf] = useState(currentMatch?.best_of ?? 3);
-    const [game, setGame] = useState(currentMatch?.game);
+    const bansPerTeam = currentMatch?.bans_per_team ?? 3;
+    const bestOf = currentMatch?.best_of ?? 3;
+    const game = currentMatch?.game;
 
     const handleUpdateMatch = (field: 'bans_per_team' | 'best_of' | 'game', value: number | string) => {
         if (!currentMatch) return;
@@ -58,20 +58,20 @@ const MatchContent = () => {
                     <MatchEditorField
                         label="Best of"
                         fieldId="best_of"
+                        disabled={updateLoading}
                         value={bestOf}
                         onChange={(value) => {
-                            setBestOf(value);
                             handleUpdateMatch('best_of', value);
                         }}
                         values={[1, 3, 5, 7]}
                     />
 
                     <MatchEditorField
+                        disabled={updateLoading}
                         label="Bans per team"
                         fieldId="bans_per_team"
                         value={bansPerTeam}
                         onChange={(value) => {
-                            setBansPerTeam(value);
                             handleUpdateMatch('bans_per_team', value);
                         }}
                         values={[0, 3, 5, 7]}
@@ -85,7 +85,6 @@ const MatchContent = () => {
                         initialValue={game ?? null}
                         onUpdate={(newGame) => {
                             if (newGame) {
-                                setGame(newGame as typeof game);
                                 handleUpdateMatch('game', newGame);
                             }
                         }}
@@ -127,13 +126,12 @@ export const Match = () => {
     const createMatchModalRef = useRef<ModalRef>(null);
     const joinLobbyModalRef = useRef<ModalRef>(null);
 
-    // Activar el realtime si hay un match persistido
     useEffect(() => {
         if (currentMatch?.id) {
             subscribeToMatch(currentMatch.id);
         }
         return () => unsubscribe();
-    }, [currentMatch?.id]);
+    }, []);
 
     return (
         <>

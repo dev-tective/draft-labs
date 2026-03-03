@@ -26,7 +26,7 @@ const mapScrapedTeamToTeamData = (scrapedTeam: ScrapedTeam): ScrapedTeam => {
     };
 };
 
-export const useScraperTeam = async (link: string): Promise<ScrapedTeam> => {
+export const fetchScrapedTeam = async (link: string): Promise<ScrapedTeam> => {
     const { data, error } = await supabase.functions.invoke<ScrapedTeam>('team-scraper', {
         body: { teamUrl: link },
     });

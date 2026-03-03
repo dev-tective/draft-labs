@@ -1,7 +1,7 @@
 import { Icon } from "@iconify/react";
 import { useHeroesStore } from "../../stores/heroesStore";
 import { Teams, useDraftStore } from "../../stores/draftStore";
-import { Tag, useTagsStore } from "@/stores/tagsStore";
+import { Tag, useTagsStore } from "@/stores/tagStore";
 
 interface TagOptionProps {
     tag: Tag;

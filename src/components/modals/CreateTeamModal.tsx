@@ -1,8 +1,8 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { useScraperTeam, ScrapedTeam } from "@/hooks/useScraperTeam";
-import { useCreateTeam } from "@/hooks/useTeam";
+import { fetchScrapedTeam, ScrapedTeam } from "@/hooks/useScraperTeam";
+import { useTeamStore } from "@/stores/teamStore";
 import { useMatchStore } from "@/stores/matchStore";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { DragDropProvider } from "@dnd-kit/react";
@@ -17,6 +17,7 @@ interface PlayerInputProps {
 
 const PlayerInput = ({ uid, nickname, index, updatePlayerNickname, removePlayer }: PlayerInputProps) => {
     const { ref, handleRef } = useSortable({ id: uid, index });
+    
     return (
         <div
             ref={ref}
@@ -110,8 +111,8 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
     const [error, setError] = useState<string | null>(null);
 
     // Hook for creating team
-    const matchId = useMatchStore((state) => state.currentMatchId);
-    const { mutate: createTeam, isPending: isCreating, error: createError } = useCreateTeam();
+    const { currentMatch } = useMatchStore();
+    const { createTeam } = useTeamStore();
 
     const handleScrape = async () => {
         if (!teamUrl.trim()) return;
@@ -120,7 +121,7 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
         setError(null);
 
         try {
-            const data = await useScraperTeam(teamUrl.trim());
+            const data = await fetchScrapedTeam(teamUrl.trim());
             setScrapedTeam(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Error fetching team data');
@@ -169,39 +170,29 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
         }
     };
 
-    const handleCreateTeam = () => {
+    const handleCreateTeam = async () => {
         if (!scrapedTeam.name.trim() || !scrapedTeam.acronym.trim()) return;
 
         // Format players data - filter out empty nicknames
         const formattedPlayers = scrapedTeam.players
             .filter(p => p.nickname.trim())
-            .map(p => ({
-                nickname: p.nickname.trim(),
-            }));
+            .map(p => ({ nickname: p.nickname.trim() }));
 
-        createTeam({
-            match_id: matchId || '',
-            name: scrapedTeam.name.trim(),
-            acronym: scrapedTeam.acronym.trim(),
-            logo_url: scrapedTeam.logo_url || undefined,
-            players: formattedPlayers.length > 0 ? formattedPlayers : undefined,
-        }, {
-            onSuccess: () => {
-                // Close modal and reset form
-                ref && typeof ref !== 'function' && ref.current?.close();
-                setTeamUrl("");
-                setScrapedTeam({
-                    name: "",
-                    acronym: "",
-                    logo_url: "",
-                    players: []
-                });
-                setError(null);
+        await createTeam(
+            {
+                match_id: currentMatch?.id ?? '',
+                name: scrapedTeam.name.trim(),
+                acronym: scrapedTeam.acronym.trim(),
+                logo_url: scrapedTeam.logo_url || undefined,
             },
-            onError: (err) => {
-                setError(err instanceof Error ? err.message : 'Error creating team');
-            }
-        });
+            formattedPlayers.length > 0 ? formattedPlayers : undefined
+        );
+
+        // Reset form and close modal
+        ref && typeof ref !== 'function' && ref.current?.close();
+        setTeamUrl("");
+        setScrapedTeam({ name: "", acronym: "", logo_url: "", players: [] });
+        setError(null);
     };
 
     return (
@@ -286,14 +277,14 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                     </div>
 
                     {/* Error Messages */}
-                    {(error || createError) && (
+                    {error && (
                         <div className="
                             p-3 rounded-lg
                             bg-red-950/30 border border-red-800
                             text-red-400 text-sm
                         ">
                             <Icon icon="mdi:alert-circle" className="inline mr-2" />
-                            {error || (createError instanceof Error ? createError.message : 'Error creating team')}
+                            {error}
                         </div>
                     )}
                 </Section>
@@ -435,7 +426,7 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                     </button>
                     <button
                         onClick={handleCreateTeam}
-                        disabled={!scrapedTeam.name.trim() || !scrapedTeam.acronym.trim() || isCreating}
+                        disabled={!scrapedTeam.name.trim() || !scrapedTeam.acronym.trim()}
                         className="
                             flex-1 py-3
                             text-sm font-bold uppercase 
@@ -448,13 +439,7 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                             flex items-center justify-center gap-2
                         "
                     >
-                        {isCreating && (
-                            <Icon
-                                icon="line-md:loading-twotone-loop"
-                                className="text-xl"
-                            />
-                        )}
-                        {isCreating ? 'Creating...' : 'Create Team'}
+                        Create Team
                     </button>
                 </div>
             </div>
