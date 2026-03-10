@@ -1,5 +1,5 @@
 import { Icon } from "@iconify/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAlertStore, AlertType, Alert as AlertData } from "@/stores/alertStore";
 
 export interface AlertProps {
@@ -7,19 +7,45 @@ export interface AlertProps {
 }
 
 export const Alert = ({ alert }: AlertProps) => {
-    const [isClosing, setIsClosing] = useState(false);
     const removeAlert = useAlertStore((state) => state.removeAlert);
     const { id, message, type = AlertType.INFO, handleAction, duration = 5000 } = alert;
 
-    useEffect(() => {
-        // Set timer to trigger closing animation
-        const closeTimer = setTimeout(() => {
-            setIsClosing(true);
-        }, duration);
+    const [isClosing, setIsClosing] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
 
-        // Cleanup timer on unmount
-        return () => clearTimeout(closeTimer);
-    }, [duration]);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const startTimeRef = useRef<number>(Date.now());
+    const remainingRef = useRef<number>(duration);
+
+    useEffect(() => {
+        // Start the initial close timer
+        startTimeRef.current = Date.now();
+        timerRef.current = setTimeout(() => {
+            setIsClosing(true);
+        }, remainingRef.current);
+
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, []);
+
+    const handleMouseEnter = () => {
+        if (isClosing) return;
+        // Save how much time is left
+        remainingRef.current -= Date.now() - startTimeRef.current;
+        if (timerRef.current) clearTimeout(timerRef.current);
+        setIsPaused(true);
+    };
+
+    const handleMouseLeave = () => {
+        if (isClosing) return;
+        // Restart timer with remaining time
+        startTimeRef.current = Date.now();
+        timerRef.current = setTimeout(() => {
+            setIsClosing(true);
+        }, remainingRef.current);
+        setIsPaused(false);
+    };
 
     // Remove alert from store after close animation completes
     useEffect(() => {
@@ -37,7 +63,10 @@ export const Alert = ({ alert }: AlertProps) => {
     };
 
     return (
-        <span className={`
+        <span
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className={`
                 pointer-events-auto relative overflow-hidden
                 flex justify-between items-center
                 w-full p-5 gap-3
@@ -60,7 +89,8 @@ export const Alert = ({ alert }: AlertProps) => {
                     ${type === AlertType.SUCCESS && 'bg-green-500'}
                 `}
                 style={{
-                    animation: `countdown ${duration}ms linear forwards`
+                    animation: `countdown ${duration}ms linear forwards`,
+                    animationPlayState: isPaused ? 'paused' : 'running'
                 }}
             />
 
@@ -103,12 +133,12 @@ export const AlertContainer = () => {
     const alerts = useAlertStore((state) => state.alerts);
 
     return (
-        <aside className={`
-                fixed flex flex-col items-end justify-end 
-                h-dvh w-2/10 min-w-80 gap-3
-                left-5 bottom-5 z-50
-                pointer-events-none
-        `}>
+        <aside className="
+            fixed flex flex-col items-end justify-end 
+            h-dvh w-2/10 min-w-80 gap-3
+            left-5 bottom-5 z-50
+            pointer-events-none
+        ">
             {alerts.map((alert) => (
                 <Alert key={alert.id} alert={alert} />
             ))}

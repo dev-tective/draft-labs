@@ -26,8 +26,50 @@
     @apply bg-cyan-950/70 border-cyan-400;
   }
 
-  /* Firefox scrollbar */
+  .beveled {
+    corner-shape: bevel;
+  }
 
+  .beveled-tr {
+    corner-top-right-shape: bevel;
+  }
+
+  .beveled-tl {
+    corner-top-left-shape: bevel;
+  }
+
+  .beveled-bl {
+    corner-bottom-left-shape: bevel;
+  }
+
+  .beveled-bl-tr {
+    corner-bottom-left-shape: bevel;
+    corner-top-right-shape: bevel;
+  }
+
+  .beveled-br-tl {
+    corner-bottom-right-shape: bevel;
+    corner-top-left-shape: bevel;
+  }
+
+  /* beveled-none va AL FINAL para ganar en cascada sobre cualquier otra clase beveled-* */
+  .beveled-none {
+    corner-shape: none;
+  }
+
+}
+
+.loader {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border-color: oklch(78.9% 0.154 211.53) #0000;
+  animation: l1 1s infinite;
+}
+
+@keyframes l1 {
+  to {
+    transform: rotate(.5turn)
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -89,32 +131,6 @@
 body {
   @apply bg-slate-950 text-slate-200;
   font-family: 'Orbitron', sans-serif;
-}
-
-.beveled {
-  corner-shape: bevel;
-}
-
-.beveled-tr {
-  corner-top-right-shape: bevel;
-}
-
-.beveled-tl {
-  corner-top-left-shape: bevel;
-}
-
-.beveled-bl {
-  corner-bottom-left-shape: bevel;
-}
-
-.beveled-bl-tr {
-  corner-bottom-left-shape: bevel;
-  corner-top-right-shape: bevel;
-}
-
-.beveled-br-tl {
-  corner-bottom-right-shape: bevel;
-  corner-top-left-shape: bevel;
 }
 
 .scanline {

@@ -8,10 +8,11 @@ export interface Player {
     id: string;
     nickname: string;
     team_id: string;
-    image_url?: string;
+    image_url?: string | null;
     lane?: Tag;
     is_active: boolean;
     match_id: string;
+    order?: number | null;
     created_at: string;
 }
 
@@ -19,9 +20,11 @@ interface PlayerState {
     players: Player[];
     channel: RealtimeChannel | null;
     loading: boolean;
+    updateLoading: boolean;
 
     createPlayer: (params: Partial<Player>) => Promise<void>;
     updatePlayer: (params: Partial<Player>) => Promise<void>;
+    updatePlayersContext: (playersToUpdate: { id: string, order: number }[]) => Promise<void>;
     deletePlayer: (playerId: string) => void;
     subscribeToMatch: (matchId: string) => void;
     closeChannel: () => void;
@@ -32,8 +35,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     players: [],
     channel: null,
     loading: false,
+    updateLoading: false,
 
     createPlayer: async (params: Partial<Player>) => {
+        set({ updateLoading: true });
+
         const { data, error } = await supabase
             .from('players')
             .insert({
@@ -51,6 +57,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
                 message: error.message,
                 type: AlertType.ERROR,
             });
+            set({ updateLoading: false });
             return;
         }
 
@@ -59,10 +66,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             type: AlertType.SUCCESS,
         });
 
+        set({ updateLoading: false });
+
         console.log('[PlayerStore] Player created:', data);
     },
 
     updatePlayer: async (params: Partial<Player>) => {
+        set({ updateLoading: true });
+
         const {
             id,
             match_id,
@@ -81,6 +92,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
                 type: AlertType.ERROR,
             });
         }
+
+        set({ updateLoading: false });
+    },
+
+    updatePlayersContext: async (playersToUpdate: { id: string, order: number }[]) => {
+        set({ updateLoading: true });
+
+        // Use an RPC or bulk upsert. But since supabase-js does not support bulk update out of the box nicely, 
+        // upserting requires passing the entire row, which we might not have. Or we can use an RPC fn.
+        // Assuming we can iterate since there are max 5 players.
+        const promises = playersToUpdate.map(p =>
+            supabase.from('players').update({ order: p.order }).eq('id', p.id)
+        );
+
+        await Promise.all(promises);
+
+        set({ updateLoading: false });
     },
 
     deletePlayer: (playerId: string) => {
@@ -149,10 +177,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
                                 p.id === player.id ? player : p
                             ),
                         }));
-                        useAlertStore.getState().addAlert({
-                            message: `Player "${player.nickname}" was updated`,
-                            type: AlertType.INFO,
-                        });
+                        // useAlertStore.getState().addAlert({
+                        //     message: `Player "${player.nickname}" was updated`,
+                        //     type: AlertType.INFO,
+                        // });
                     } else if (payload.eventType === "DELETE") {
                         const player = payload.old as Player;
                         set((state) => ({

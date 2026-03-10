@@ -24,7 +24,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
     });
 
     const { currentMatch } = useMatchStore();
-    const { createPlayer, updatePlayer } = usePlayerStore();
+    const { createPlayer, updatePlayer, updateLoading } = usePlayerStore();
 
     const { lanes, findLane } = useTagStore();
 
@@ -33,7 +33,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
 
         const commonData = {
             nickname: formData.nickname.trim(),
-            image_url: (formData.useCustomImage && formData.imageUrl?.trim()) ? formData.imageUrl.trim() : DEFAULT_IMAGE,
+            image_url: (formData.useCustomImage && formData.imageUrl?.trim()) ? formData.imageUrl.trim() : null,
             lane: findLane(formData.lane?.id ?? 0),
         };
 
@@ -78,7 +78,8 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                     </div>
                     <button
                         onClick={() => ref && typeof ref !== 'function' && ref.current?.close()}
-                        className="text-slate-500 hover:text-cyan-400 transition-colors"
+                        disabled={updateLoading}
+                        className="text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                         <Icon icon="mdi:close" className="text-3xl" />
                     </button>
@@ -192,7 +193,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                     {formData.useCustomImage ? (
                         <input
                             type="text"
-                            value={formData.imageUrl}
+                            value={formData.imageUrl ?? ''}
                             onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
                             placeholder="https://example.com/image.jpg"
                             className="
@@ -245,7 +246,7 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={!formData.nickname.trim()}
+                    disabled={!formData.nickname.trim() || updateLoading}
                     className={`
                         w-full py-3 md:py-4
                         text-lg font-bold uppercase 
@@ -258,7 +259,14 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                         flex items-center justify-center gap-2
                     `}
                 >
-                    {createMode ? 'Create Player' : 'Save Changes'}
+                    {updateLoading ? (
+                        <>
+                            <Icon icon="mdi:loading" className="animate-spin text-xl" />
+                            {createMode ? 'Creating...' : 'Saving...'}
+                        </>
+                    ) : (
+                        createMode ? 'Create Player' : 'Save Changes'
+                    )}
                 </button>
             </div>
         </ModalLayout>

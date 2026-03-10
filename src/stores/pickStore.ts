@@ -1,13 +1,10 @@
-import { MatchGame } from "@/hooks/useGames";
 import { supabase } from "@/supabaseClient";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { create } from "zustand";
-
-export type TeamSide = "blue" | "red";
+import { AlertType, useAlertStore } from "./alertStore";
 
 export interface Pick {
     id: string;
-    team: TeamSide;
     player_id?: string | null;
     pick_order: number;
     is_locked: boolean;
@@ -15,50 +12,27 @@ export interface Pick {
     ban_hero_id?: number | null;
     game_id: string;
     created_at: string;
+    team_id: string;
 }
 
 interface PickStore {
-    currentGameId: string | null;
     picks: Pick[];
     channel: RealtimeChannel | null;
     loading: boolean;
 
-    setCurrentGameId: (matchGames: MatchGame[]) => void;
-    selectGame: (gameId: string) => void;
-    clearCurrentGameId: () => void;
     subscribeToGame: (gameId: string) => void;
+    swapGameTeams: (gameId: string) => Promise<void>;
     closeChannel: () => void;
     unsubscribe: () => void;
 }
 
-export const usePicksStore = create<PickStore>((set, get) => ({
-    currentGameId: null,
+export const usePickStore = create<PickStore>((set, get) => ({
     picks: [],
     channel: null,
     loading: false,
 
-    setCurrentGameId: (matchGames: MatchGame[]) => {
-        if (matchGames.length === 0) {
-            set({ currentGameId: null });
-            return;
-        }
-
-        const game = matchGames.find((game) => game.winner_team_id === null);
-
-        if (!game) {
-            set({ currentGameId: matchGames[0].id });
-            return;
-        }
-
-        set({ currentGameId: game.id });
-    },
-
-    selectGame: (gameId: string) => set({ currentGameId: gameId }),
-
-    clearCurrentGameId: () => set({ currentGameId: null }),
-
     subscribeToGame: (gameId: string) => {
-        // Unsubscribe from previous channel if exists
+        // Desuscribirse del canal anterior si existe
         const currentChannel = get().channel;
         if (currentChannel) {
             currentChannel.unsubscribe();
@@ -66,7 +40,7 @@ export const usePicksStore = create<PickStore>((set, get) => ({
 
         set({ loading: true, picks: [] });
 
-        // Create a new realtime channel filtered by game_id
+        // Canal realtime filtrado por game_id
         const channel = supabase
             .channel(`picks:game_id=eq.${gameId}`)
             .on(
@@ -78,7 +52,7 @@ export const usePicksStore = create<PickStore>((set, get) => ({
                     filter: `game_id=eq.${gameId}`,
                 },
                 (payload) => {
-                    console.log("[PicksStore] Realtime event:", payload);
+                    console.log("[PickStore] Realtime event:", payload);
 
                     if (payload.eventType === "INSERT") {
                         set((state) => ({
@@ -105,7 +79,7 @@ export const usePicksStore = create<PickStore>((set, get) => ({
 
         set({ channel });
 
-        // Load initial picks for this game
+        // Carga inicial de picks para este juego
         supabase
             .from("picks")
             .select("*")
@@ -113,7 +87,7 @@ export const usePicksStore = create<PickStore>((set, get) => ({
             .order("pick_order", { ascending: true })
             .then(({ data, error }) => {
                 if (error) {
-                    console.error("[PicksStore] Error loading picks:", error);
+                    console.error("[PickStore] Error loading picks:", error);
                 } else {
                     set({ picks: (data as Pick[]) ?? [] });
                 }
@@ -121,7 +95,7 @@ export const usePicksStore = create<PickStore>((set, get) => ({
             });
     },
 
-    // Solo cierra el canal, sin tocar currentGameId — para usar en el cleanup del useEffect
+    // Cierra el canal — para cleanup de useEffect
     closeChannel: () => {
         const channel = get().channel;
         if (channel) {
@@ -134,6 +108,29 @@ export const usePicksStore = create<PickStore>((set, get) => ({
     unsubscribe: () => {
         const channel = get().channel;
         if (channel) channel.unsubscribe();
-        set({ channel: null, picks: [], currentGameId: null });
+        set({ channel: null, picks: [] });
+    },
+
+    swapGameTeams: async (gameId: string) => {
+        set({ loading: true });
+        const { error } = await supabase.rpc("swap_game_teams", {
+            p_game_id: gameId,
+        });
+
+        if (error) {
+            console.error("[PickStore] Error swapping game teams:", error);
+            useAlertStore.getState().addAlert({
+                message: "Error swapping game teams",
+                type: AlertType.ERROR,
+            });
+            set({ loading: false });
+            return;
+        }
+
+        useAlertStore.getState().addAlert({
+            message: "Teams swapped successfully",
+            type: AlertType.SUCCESS,
+        });
+        set({ loading: false });
     },
 }));

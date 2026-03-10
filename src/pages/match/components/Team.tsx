@@ -10,55 +10,29 @@ import { useMatchStore } from "@/stores/matchStore";
 import { useAlertStore, AlertType } from "@/stores/alertStore";
 import DEFAULT_LOGO from "@/assets/ui/shield.svg";
 import { DragDropProvider, useDragDropMonitor, useDroppable } from "@dnd-kit/react";
-import { isSortable } from "@dnd-kit/react/sortable";
 import { Player as PlayerType } from "@/stores/playerStore";
 import { Team as TeamType } from "@/stores/teamStore";
 import { useShallow } from "zustand/react/shallow";
-import { Player, PlayerSortable } from "./Player";
+import { ActivePlayer } from "./player/ActivePlayer";
+import { InactivePlayer } from "./player/InactivePlayer";
+import { SortableZone } from "@/components/SortableZone";
 
 interface Props {
     index: number;
     reverse?: boolean;
 }
 
-const SortableZone = ({ teamId }: { teamId: string }) => {
-    const { updatePlayer } = usePlayerStore();
-    const players = usePlayerStore(
+const ActiveZone = ({ teamId, droppableId }: { teamId: string; droppableId: string }) => {
+    const { ref, isDropTarget } = useDroppable({ id: droppableId });
+    const { updatePlayer, updatePlayersContext } = usePlayerStore();
+
+    const activePlayers = usePlayerStore(
         useShallow((state) =>
             state.players.filter((p) => p.team_id === teamId && p.is_active)
         )
     );
-
-    // Si un jugador activo se suelta fuera de cualquier target → desactivar
-    useDragDropMonitor({
-        onDragEnd({ operation, canceled }) {
-            if (canceled || !isSortable(operation.source)) return;
-
-            const player = operation.source?.data?.player as PlayerType | undefined;
-            if (!player || player.team_id !== teamId) return;
-
-            // target === null significa que se soltó fuera de todo droppable/sortable
-            if (operation.target === null) {
-                updatePlayer({ id: player.id, is_active: false });
-            }
-        },
-    });
-
-    return (
-        <div className="flex flex-col gap-2">
-            {players.map((player, index) => (
-                <PlayerSortable key={player.id} player={player} index={index} />
-            ))}
-        </div>
-    );
-};
-
-const ActiveZone = ({ teamId, droppableId }: { teamId: string; droppableId: string }) => {
-    const { ref, isDropTarget } = useDroppable({ id: droppableId });
-    const { updatePlayer } = usePlayerStore();
-
-    const activeCount = usePlayerStore.getState().players
-        .filter(p => p.team_id === teamId && p.is_active).length;
+    
+    const activeCount = activePlayers.length;
 
     useDragDropMonitor({
         onDragEnd({ operation, canceled }) {
@@ -78,12 +52,12 @@ const ActiveZone = ({ teamId, droppableId }: { teamId: string; droppableId: stri
                 return;
             }
 
-            updatePlayer({ id: player.id, is_active: true });
+            updatePlayer({ id: player.id, is_active: true, order: activeCount + 1 });
         }
     });
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 mb-5">
             <div className="text-slate-200 uppercase font-bold flex justify-between">
                 <span>Active Players</span>
                 <span className="tracking-widest">{activeCount}/5</span>
@@ -97,7 +71,19 @@ const ActiveZone = ({ teamId, droppableId }: { teamId: string; droppableId: stri
                     : 'border-slate-700 bg-slate-800/20'
                 }
             `}>
-                <SortableZone teamId={teamId} />
+                <SortableZone
+                    className="flex-col gap-2"
+                    items={activePlayers}
+                    onDropOutside={(player) => updatePlayer({ id: player.id as string, is_active: false, order: null })}
+                    onReorder={(items) => updatePlayersContext(items as { id: string; order: number }[])}
+                    renderItem={(player, index) => (
+                        <ActivePlayer
+                            key={player.id}
+                            player={player as PlayerType}
+                            index={index}
+                        />
+                    )}
+                />
 
                 {(activeCount < 5) && (
                     <span
@@ -130,7 +116,7 @@ const TeamPlayers = ({ team }: { team: TeamType }) => {
         <DragDropProvider>
             <ActiveZone teamId={team.id} droppableId={droppableId} />
             {inactivePlayers.map((player) => (
-                <Player key={player.id} player={player} />
+                <InactivePlayer key={player.id} player={player} />
             ))}
         </DragDropProvider>
     );
@@ -202,7 +188,7 @@ export const Team = ({ index, reverse = false }: Props) => {
                     'beveled-br-tl rounded-tl-3xl rounded-br-3xl after:right-0'
                     : 'beveled-bl-tr rounded-tr-3xl rounded-bl-3xl after:left-0'}
             `}>
-                <div className="flex-1 flex flex-col p-8 gap-8">
+                <div className="flex flex-col w-full p-8 gap-8">
                     <div className={`
                         flex items-center justify-between
                         pb-5 border-b
@@ -230,8 +216,10 @@ export const Team = ({ index, reverse = false }: Props) => {
                                     {team.name}
                                 </h1>
                                 <h2 className="text-lg font-semibold uppercase text-slate-200">
-                                    <span className="mr-2 text-slate-400">Coach:</span>
-                                    {team.coach}
+                                    <span className="mr-2 text-slate-400">
+                                        Coach:
+                                    </span>
+                                    {team.coach || 'No coach'}
                                 </h2>
                             </div>
                         </div>
@@ -245,7 +233,7 @@ export const Team = ({ index, reverse = false }: Props) => {
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <TeamPlayers team={team} />
                         <button
                             onClick={() => createPlayerModalRef.current?.open()}

@@ -35,7 +35,7 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     updateLoading: false,
 
     createTeam: async (params: Partial<Team>, players?: Partial<Player>[]) => {
-        const { data, error } = await supabase.rpc('create_team_with_players', {
+        const { error } = await supabase.rpc('create_team_with_players', {
             p_match_id: params.match_id,
             p_name: params.name,
             p_acronym: params.acronym,
@@ -56,8 +56,6 @@ export const useTeamStore = create<TeamState>((set, get) => ({
             message: `Team "${params.name}" created`,
             type: AlertType.SUCCESS,
         });
-
-        console.log('[TeamStore] Team created:', data);
     },
 
     updateTeam: async (params: Partial<Team>) => {

@@ -2,20 +2,109 @@ import { Copy } from "@/components/Copy";
 import { Game } from "@/stores/matchStore";
 import { useMatchStore } from "@/stores/matchStore";
 import { CutOutBtn, CutOutBtnPrimary } from "@/components/CutOutBtn";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ModalRef } from "@/layout/ModalLayout";
 import { CreateMatchModal } from "@/components/modals/CreateMatchModal";
 import { JoinLobbyModal } from "@/components/modals/JoinLobbyModal";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { WarningMessage } from "@/components/shared/WarningMessage";
 import { Icon } from "@iconify/react";
-import { AlertType } from "@/stores/alertStore";
+import { AlertType, useAlertStore } from "@/stores/alertStore";
 import { MatchEditorField } from "./components/MatchEditorField";
 import { TagSelect } from "../../components/TagSelect";
 import { Team } from "@/pages/match/components/Team";
+import { useTeamStore } from "@/stores/teamStore";
+import { StartMatchModal } from "@/components/modals/StartMatchModal";
+import { ResetMatchModal } from "@/components/modals/ResetMatchModal";
+
+const TeamSlider = () => {
+    const { teams } = useTeamStore();
+
+    const numSlides = Math.floor(teams.length / 2) + 1;
+
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const safeSlide = Math.min(currentSlide, numSlides - 1);
+
+    const leftIndex = safeSlide * 2;
+    const rightIndex = safeSlide * 2 + 1;
+
+    const showNav = numSlides > 1;
+
+    return (
+        <div className="flex-1 flex flex-col gap-5">
+            {showNav && (
+                <div className="flex items-center gap-3 h-12">
+                    <CutOutBtn
+                        icon="mdi:chevron-left"
+                        onClick={() => setCurrentSlide((p) => Math.max(0, p - 1))}
+                        disabled={safeSlide === 0}
+                        className="h-full w-12 text-xl beveled-br-tl rounded-none rounded-tl-2xl rounded-br-2xl"
+                    />
+
+                    <div className="flex items-center gap-2 h-full">
+                        {Array.from({ length: numSlides }, (_, i) => {
+                            const leftTeam = teams[i * 2];
+                            const rightTeam = teams[i * 2 + 1];
+
+                            const leftName = leftTeam?.acronym?.toUpperCase() || "TBD";
+                            const rightName = rightTeam?.acronym?.toUpperCase() || "TBD";
+
+                            const label = `${leftName} VS ${rightName}`;
+
+                            const isActive = i === safeSlide;
+
+                            return (
+                                <CutOutBtn
+                                    key={i}
+                                    text={label}
+                                    onClick={() => setCurrentSlide(i)}
+                                    className={`
+                                        rounded-none h-full px-4
+                                        ${isActive && "border-cyan-500 bg-cyan-500/15 text-cyan-400"}
+                                    `}
+                                />
+                            );
+                        })}
+                    </div>
+
+                    <CutOutBtn
+                        icon="mdi:chevron-right"
+                        onClick={() => setCurrentSlide((p) => Math.min(numSlides - 1, p + 1))}
+                        disabled={safeSlide === numSlides - 1}
+                        className="h-full w-12 text-xl"
+                    />
+                </div>
+            )}
+
+            {/* The two team slots for the current slide */}
+            <div className="flex flex-col xl:flex-row flex-1 h-full gap-8 items-stretch">
+                <Team key={`team-${leftIndex}`} index={leftIndex} reverse={false} />
+
+                <span className="
+                    m-auto pr-1.5
+                    h-24 w-24
+                    shrink-0
+                    text-center content-center
+                    font-bold italic text-2xl
+                    border border-slate-700 bg-slate-900
+                    rounded-full beveled
+                    select-none
+                ">
+                    VS
+                </span>
+
+                <Team key={`team-${rightIndex}`} index={rightIndex} reverse={true} />
+            </div>
+        </div>
+    );
+};
 
 const MatchContent = () => {
     const { currentMatch, updateMatch, deleteMatch, updateLoading } = useMatchStore();
+    const { teams } = useTeamStore();
+
+    const startMatchModalRef = useRef<ModalRef>(null);
+    const resetMatchModalRef = useRef<ModalRef>(null);
 
     const bansPerTeam = currentMatch?.bans_per_team ?? 3;
     const bestOf = currentMatch?.best_of ?? 3;
@@ -29,7 +118,7 @@ const MatchContent = () => {
     if (!currentMatch) return null;
 
     return (
-        <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex flex-col gap-8">
             {/* Header with ID and Match Settings */}
             <div className="
                 flex flex-col xl:flex-row items-start justify-between 
@@ -58,7 +147,7 @@ const MatchContent = () => {
                     <MatchEditorField
                         label="Best of"
                         fieldId="best_of"
-                        disabled={updateLoading}
+                        disabled={updateLoading || currentMatch.start}
                         value={bestOf}
                         onChange={(value) => {
                             handleUpdateMatch('best_of', value);
@@ -67,7 +156,7 @@ const MatchContent = () => {
                     />
 
                     <MatchEditorField
-                        disabled={updateLoading}
+                        disabled={updateLoading || currentMatch.start}
                         label="Bans per team"
                         fieldId="bans_per_team"
                         value={bansPerTeam}
@@ -81,6 +170,7 @@ const MatchContent = () => {
                     <TagSelect
                         icon="ion:game-controller"
                         field="Game"
+                        disabled={updateLoading || currentMatch.start}
                         options={Object.values(Game).map((g) => ({ value: g, label: g }))}
                         initialValue={game ?? null}
                         onUpdate={(newGame) => {
@@ -92,36 +182,52 @@ const MatchContent = () => {
                 </div>
             </div>
 
-            <div className="ml-auto w-full md:w-1/2 xl:w-1/3">
-                <CutOutBtnPrimary
-                    alternative
-                    icon="ic:sharp-delete"
-                    text="Delete Match"
-                    onClick={() => deleteMatch(currentMatch.id)}
-                />
-            </div>
+            {/* Teams — with slide navigation when there are more than 2 */}
+            <TeamSlider />
 
-            {/* Teams */}
-            <div className="flex flex-col xl:flex-row flex-1 h-full gap-6">
-                <Team index={0} />
-                <span className="
-                    m-auto pr-1.5
-                    h-24 w-24 
-                    text-center content-center
-                    font-bold italic text-2xl
-                    border border-slate-700 bg-slate-900
-                    rounded-full beveled
-                ">
-                    VS
-                </span>
-                <Team index={1} reverse />
+            <div className="flex flex-col md:flex-row justify-end gap-5 w-full">
+                <StartMatchModal ref={startMatchModalRef} />
+                <ResetMatchModal ref={resetMatchModalRef} />
+                <div className="w-2/3">
+                    <CutOutBtnPrimary
+                        icon={currentMatch.start ? 'ix:hard-reset' : 'streamline-sharp:startup-solid'}
+                        text={currentMatch.start ? 'Reset Match' : 'Start Match'}
+                        disabled={updateLoading}
+                        alternative={currentMatch.start}
+                        onClick={() => {
+
+                            if (currentMatch.start) {
+                                resetMatchModalRef.current?.open();
+                                return;
+                            }
+
+                            if (teams.length < 2) {
+                                useAlertStore.getState().addAlert({
+                                    message: 'You need 2 teams to start the match',
+                                    type: AlertType.WARNING,
+                                });
+                                return;
+                            }
+
+                            startMatchModalRef.current?.open();
+                        }}
+                    />
+                </div>
+                <div className="w-1/2">
+                    <CutOutBtnPrimary
+                        alternative
+                        icon="ic:sharp-delete"
+                        text="Delete Match"
+                        onClick={() => deleteMatch(currentMatch.id)}
+                    />
+                </div>
             </div>
         </div>
     );
 };
 
 export const Match = () => {
-    const { currentMatch, loading, subscribeToMatch, unsubscribe } = useMatchStore();
+    const { currentMatch, loading, subscribeToMatch, closeChannel } = useMatchStore();
 
     const createMatchModalRef = useRef<ModalRef>(null);
     const joinLobbyModalRef = useRef<ModalRef>(null);
@@ -130,7 +236,8 @@ export const Match = () => {
         if (currentMatch?.id) {
             subscribeToMatch(currentMatch.id);
         }
-        return () => unsubscribe();
+
+        return () => closeChannel();
     }, []);
 
     return (
@@ -155,7 +262,7 @@ export const Match = () => {
                     </div>
                     <div className="flex gap-4 w-full lg:max-w-sm">
                         <CutOutBtn
-                            icon="lsicon:warehouse-into-filled"
+                            icon="material-symbols:sensor-door"
                             text="join lobby"
                             onClick={() => joinLobbyModalRef.current?.open()}
                         />

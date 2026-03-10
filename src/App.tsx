@@ -5,6 +5,7 @@ import { Login } from "./pages/auth/Login";
 import { Layout } from "./layout/Layout";
 import { Match } from "./pages/match/Match";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { GamesPage } from "./pages/game/GamesPage";
 
 function App() {
   return (
@@ -28,6 +29,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout><Match /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/games"
+          element={
+            <ProtectedRoute>
+              <Layout><GamesPage /></Layout>
             </ProtectedRoute>
           }
         />

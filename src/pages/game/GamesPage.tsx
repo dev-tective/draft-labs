@@ -1,148 +1,172 @@
-// import { CutOutBtnPrimary } from "@/components/CutOutBtn";
-// import { MatchGame, useGame, useGames, useUpdateGame } from "@/hooks/useGames";
-// import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-// import { ErrorMessage } from "@/components/shared/ErrorMessage";
-// import { useMatchStore } from "@/stores/matchStore";
-// import { usePicksStore } from "@/stores/picksStore";
-// import { useEffect, useRef } from "react";
-// import { Navigate } from "react-router-dom";
-// import { TagSelect } from "../../components/TagSelect";
-// import { TeamDrag } from "./components/TeamDrag";
-// import { DragDropProvider } from "@dnd-kit/react";
+import { useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
 
-// const GameContent = () => {
-//     // const currentGameId = usePicksStore((state) => state.currentGameId);
-//     // const currentMatchId = useMatchStore((state) => state.currentMatchId);
-//     // const { data: game, isLoading, error } = useGame(currentGameId || '');
-//     // const { data: match, isLoading: matchLoading, error: matchError } = useMatch(currentMatchId || '');
-//     // const { mutateAsync: updateGame, isPending: updatePending } = useUpdateGame();
-//     // const maps = useTagsStore((state) => state.maps);
+import { ErrorMessage } from "@/components/shared/ErrorMessage";
+import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { TagSelect } from "@/components/TagSelect";
+import { CutOutBtnPrimary } from "@/components/CutOutBtn";
+import { MatchGame, useGameStore } from "@/stores/gameStore";
+import { usePickStore } from "@/stores/pickStore";
+import { useMatchStore } from "@/stores/matchStore";
+import { useTagStore } from "@/stores/tagStore";
+import { useTeamStore } from "@/stores/teamStore";
+import { DragDropProvider } from "@dnd-kit/react";
+import { PicksBoard } from "./components/PicksBoard";
 
-//     if (isLoading || matchLoading) {
-//         return <LoadingSpinner message="Loading game..." />;
-//     }
+const GameContent = ({ game }: { game: MatchGame }) => {
+    const { teams } = useTeamStore();
+    const { updateGame, updateLoading } = useGameStore();
+    const maps = useTagStore((state) => state.maps);
+    const { picks, swapGameTeams, loading: picksLoading } = usePickStore();
 
-//     if (error || !currentGameId || !game || !currentMatchId || matchError || !match) {
-//         return <ErrorMessage
-//             title="Error loading game"
-//             message={error?.message || matchError?.message || "Game info is missing"}
-//         />;
-//     }
+    const bluePicks = picks.filter((pick) => pick.team_id === game.team_blue_id);
+    const redPicks = picks.filter((pick) => pick.team_id === game.team_red_id);
 
-//     return (
-//         <DragDropProvider>
-//             <div className="flex flex-1 w-11/12 space-y-10 mx-auto py-6 md:py-10">
-//                 <div className="w-full flex flex-col gap-6">
-//                     <div className="
-//                         flex flex-col xl:flex-row items-center justify-end
-//                         gap-4 pb-4 
-//                         border-b border-slate-700
-//                     ">
-//                         <TagSelect
-//                             nullable
-//                             icon="glyphs:crown-1-bold"
-//                             field="Winner"
-//                             options={match.teams.map((team) => ({ value: team.id, label: team.name }))}
-//                             initialValue={game.winner_team_id || null}
-//                             onUpdate={(winnerTeamId) => {
-//                                 if (winnerTeamId === game.winner_team_id) return;
+    const winnersOptions = teams.filter((team) =>
+        team.id === game.team_blue_id || team.id === game.team_red_id)
+        .map((team) => ({ value: team.id, label: team.name }));
 
-//                                 updateGame({
-//                                     id: currentGameId,
-//                                     match_id: currentMatchId,
-//                                     winner_team_id: winnerTeamId !== null ? winnerTeamId as string : null
-//                                 })
-//                             }}
-//                             disabled={updatePending}
-//                         />
-//                         <TagSelect
-//                             nullable
-//                             icon="game-icons:treasure-map"
-//                             field="Map"
-//                             options={maps.map((map) => ({ value: map.id, label: map.name }))}
-//                             initialValue={game.map_id || null}
-//                             onUpdate={(mapId) =>
-//                                 updateGame({ id: currentGameId, match_id: currentMatchId, map_id: mapId !== null ? Number(mapId) : null })
-//                             }
-//                             disabled={updatePending}
-//                         />
-//                     </div>
-//                     <div className="flex-1 flex items-center justify-between gap-4">
-//                         <div></div>
-//                         <div className="space-y-4">
-//                             {match?.teams.map((team) => (
-//                                 <TeamDrag key={team.id} team={team} />
-//                             ))}
-//                         </div>
-//                         <div></div>
-//                     </div>
-//                 </div>
-//             </div>
-//         </DragDropProvider>
-//     );
-// };
+    return (
+        <DragDropProvider>
+            <div className="flex flex-1 w-11/12 mx-auto py-6 md:py-10">
+                <div className="w-full flex flex-col gap-6">
+                    <div className="
+                        flex flex-col xl:flex-row items-center justify-end
+                        gap-4 pb-4
+                        border-b border-slate-700
+                    ">
+                        <div className="flex-1">
+                            <CutOutBtnPrimary
+                                icon="mdi:swap-horizontal"
+                                text="Invert Sides"
+                                onClick={() => swapGameTeams(game.id)}
+                                disabled={updateLoading || picksLoading}
+                            />
+                        </div>
 
-// export const GamesPage = () => {
-//     const currentMatchId = useMatchStore((state) => state.currentMatchId);
-//     const { data: games = [], isLoading, error } = useGames(currentMatchId || '');
-//     const { selectGame, currentGameId, subscribeToGame, closeChannel } = usePicksStore();
+                        <TagSelect
+                            nullable
+                            icon="glyphs:crown-1-bold"
+                            field="Winner"
+                            options={winnersOptions}
+                            initialValue={game.winner_team_id || null}
+                            onUpdate={(winnerTeamId) => {
+                                if (winnerTeamId === game.winner_team_id) return;
+                                updateGame({
+                                    id: game.id,
+                                    winner_team_id: winnerTeamId !== null ? winnerTeamId as string : null,
+                                });
+                            }}
+                            disabled={updateLoading}
+                        />
+                        <TagSelect
+                            nullable
+                            icon="game-icons:treasure-map"
+                            field="Map"
+                            options={maps.map((map) => ({ value: map.id, label: map.name }))}
+                            initialValue={game.map?.id || null}
+                            onUpdate={(mapId) => {
+                                const found = mapId !== null
+                                    ? maps.find((m) => m.id === mapId) ?? null
+                                    : null;
+                                updateGame({ id: game.id, map: found });
+                            }}
+                            disabled={updateLoading}
+                        />
+                    </div>
 
-//     useEffect(() => {
-//         if (!currentGameId) return;
-//         subscribeToGame(currentGameId);
+                    <PicksBoard picks={bluePicks} />
+                    <PicksBoard picks={redPicks} />
+                </div>
+            </div>
+        </DragDropProvider>
+    );
+};
 
-//         return () => closeChannel();
-//     }, [currentGameId]);
+export const GamesPage = () => {
+    const currentMatch = useMatchStore((state) => state.currentMatch);
 
-//     const btnRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const { games, loading, subscribeToMatch, closeChannel } = useGameStore();
+    const { subscribeToGame, closeChannel: closePickChannel } = usePickStore();
 
-//     useEffect(() => {
-//         if (!currentGameId) return;
+    const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+    const btnRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-//         const el = btnRefs.current[currentGameId];
-//         el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-//     }, [currentGameId]);
+    // Suscribirse a los juegos del match actual
+    useEffect(() => {
+        if (!currentMatch?.id) return;
 
-//     if (!currentMatchId) {
-//         return <Navigate to="/" replace />;
-//     }
+        subscribeToMatch(currentMatch.id);
 
-//     return (
-//         <>
-//             {isLoading ? (
-//                 <LoadingSpinner message="Loading games..." />
-//             ) : error ? (
-//                 <ErrorMessage title="Error loading games" message={error?.message} />
-//             ) : (
-//                 <div className="min-h-full flex flex-col relative">
-//                     <div className="
-//                         sticky top-0 z-10
-//                         flex overflow-x-auto
-//                         w-full gap-4 p-4
-//                         bg-slate-950
-//                         border-b border-slate-700
-//                         [&::-webkit-scrollbar]:hidden
-//                     ">
-//                         {games.map((game: MatchGame) => (
-//                             <div
-//                                 key={game.id}
-//                                 className="w-full"
-//                                 ref={(el) => { btnRefs.current[game.id] = el; }}
-//                             >
-//                                 <CutOutBtnPrimary
-//                                     icon={game.id === currentGameId ?
-//                                         "game-icons:pointy-sword" :
-//                                         "game-icons:bouncing-sword"}
-//                                     text={`Game ${game.game_number}`}
-//                                     active={game.id === currentGameId}
-//                                     onClick={() => selectGame(game.id)}
-//                                 />
-//                             </div>
-//                         ))}
-//                     </div>
-//                     <GameContent />
-//                 </div>
-//             )}
-//         </>
-//     );
-// };
+        return () => closeChannel();
+    }, [currentMatch?.id]);
+
+    // Seleccionar automáticamente el primer juego sin ganador (o el primero)
+    useEffect(() => {
+        if (games.length === 0) return;
+        const pending = games.find((g) => g.winner_team_id === null);
+        setCurrentGameId(pending?.id ?? games[0].id);
+    }, [games]);
+
+    // Suscribirse a los picks del juego seleccionado
+    useEffect(() => {
+        if (!currentGameId) return;
+        subscribeToGame(currentGameId);
+        return () => closePickChannel();
+    }, [currentGameId]);
+
+    // Scroll al botón del juego activo
+    useEffect(() => {
+        if (!currentGameId) return;
+        const el = btnRefs.current[currentGameId];
+        el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }, [currentGameId]);
+
+    if (!currentMatch) {
+        return <Navigate to="/" replace />;
+    }
+
+    const currentGame = games.find((g) => g.id === currentGameId) ?? null;
+
+    return (
+        <div className="min-h-full flex flex-col relative">
+            {/* Barra de juegos */}
+            <div className="
+                sticky top-0 z-10
+                flex overflow-x-auto
+                w-full gap-4 p-4
+                bg-slate-950
+                border-b border-slate-700
+                [&::-webkit-scrollbar]:hidden
+            ">
+                {games.map((game) => (
+                    <div
+                        key={game.id}
+                        className="w-full"
+                        ref={(el) => { btnRefs.current[game.id] = el; }}
+                    >
+                        <CutOutBtnPrimary
+                            icon={game.id === currentGameId
+                                ? "game-icons:pointy-sword"
+                                : "game-icons:bouncing-sword"}
+                            text={`Game ${game.game_number}`}
+                            active={game.id === currentGameId}
+                            onClick={() => setCurrentGameId(game.id)}
+                        />
+                    </div>
+                ))}
+            </div>
+
+            {/* Contenido */}
+            {!currentGame ? (
+                loading ? (
+                    <LoadingSpinner message="Loading game..." />
+                ) : (
+                    <ErrorMessage title="No game selected" message="No games available for this match." />
+                )
+            ) : (
+                <GameContent game={currentGame} />
+            )}
+        </div>
+    );
+};

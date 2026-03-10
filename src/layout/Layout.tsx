@@ -75,7 +75,7 @@ const MENU_ITEMS = [
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
     const currentMatch = useMatchStore(state => state.currentMatch);
-    const hasActiveMatch = !!currentMatch?.id;
+    const hasActiveMatch = !!currentMatch?.id && currentMatch.start;
 
     return (
         <div className="

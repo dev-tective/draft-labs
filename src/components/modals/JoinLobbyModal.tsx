@@ -51,7 +51,7 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
                     </div>
                     <button
                         onClick={() => ref && typeof ref !== 'function' && ref.current?.close()}
-                        className="text-slate-500 hover:text-cyan-400 transition-colors"
+                        className="text-slate-500 hover:text-fuchsia-500 transition-colors"
                     >
                         <Icon icon="mdi:close" className="text-3xl" />
                     </button>
@@ -65,7 +65,7 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
                         text-slate-200 uppercase tracking-widest
                     ">
                         <Icon
-                            icon="mage:key-fill"
+                            icon="fluent:key-multiple-20-filled"
                             className="text-lg md:text-2xl mr-3 text-fuchsia-500"
                         />
                         Enter ID

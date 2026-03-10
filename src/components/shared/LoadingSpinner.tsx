@@ -15,7 +15,8 @@ const sizeClasses = {
 export const LoadingSpinner = ({ size = 'lg', message }: LoadingSpinnerProps) => {
     return (
         <Panel>
-            <div className={`${sizeClasses[size]} border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin`}></div>
+            <div className={`loader ${sizeClasses[size]}`}></div>
+            {/* <div className={`${sizeClasses[size]} border-cyan-500/30 border-t-cyan-400 rounded-[] animate-spin`}></div> */}
             {message && (
                 <div className="text-lg text-slate-300 font-medium">
                     {message}

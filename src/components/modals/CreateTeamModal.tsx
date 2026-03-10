@@ -173,6 +173,11 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
     const handleCreateTeam = async () => {
         if (!scrapedTeam.name.trim() || !scrapedTeam.acronym.trim()) return;
 
+        if (scrapedTeam.players.length < 5) {
+            setError("Team must have at least 5 players");
+            return;
+        }
+
         // Format players data - filter out empty nicknames
         const formattedPlayers = scrapedTeam.players
             .filter(p => p.nickname.trim())

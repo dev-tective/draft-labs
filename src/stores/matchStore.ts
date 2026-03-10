@@ -9,6 +9,8 @@ import { persist } from "zustand/middleware";
 
 export enum Game {
     MLBB = 'MLBB',
+    LOL = 'LOL',
+    DOTA2 = 'DOTA2',
 }
 
 export interface Match {
@@ -19,6 +21,7 @@ export interface Match {
     expires_at: string;
     game?: Game;
     user_id: string;
+    start: boolean;
 }
 
 interface MatchState {
@@ -32,6 +35,8 @@ interface MatchState {
     createMatch: (params: Partial<Match>) => Promise<void>;
     updateMatch: (params: Partial<Match>) => Promise<void>;
     deleteMatch: (matchId: string) => Promise<void>;
+    startMatch: (matchId: string, teamRedId: string, teamBlueId: string, invert?: boolean) => Promise<void>;
+    resetMatch: (matchId: string, teamIdsToDelete?: string[]) => Promise<void>;
     subscribeToMatch: (matchId: string) => void;
     closeChannel: () => void;
     unsubscribe: () => void;
@@ -100,7 +105,7 @@ export const useMatchStore = create<MatchState>()(
 
                 if (error) {
                     useAlertStore.getState().addAlert({
-                        message: 'Error creating match',
+                        message: error.message,
                         type: AlertType.ERROR
                     });
                     set({ loading: false });
@@ -118,6 +123,59 @@ export const useMatchStore = create<MatchState>()(
 
                 // subscribeToMatch maneja su propio loading internamente
                 get().subscribeToMatch(newMatch.id);
+            },
+
+            startMatch: async (matchId: string, teamRedId: string, teamBlueId: string, invert = false) => {
+                set({ updateLoading: true });
+
+                const { error } = await supabase.rpc('start_match', {
+                    p_match_id: matchId,
+                    p_team_red_id: teamRedId,
+                    p_team_blue_id: teamBlueId,
+                    p_invert: invert,
+                });
+
+                if (error) {
+                    console.error('[MatchStore] Error starting match:', error);
+                    useAlertStore.getState().addAlert({
+                        message: error.message,
+                        type: AlertType.ERROR,
+                    });
+                    set({ updateLoading: false });
+                    return;
+                }
+
+                useAlertStore.getState().addAlert({
+                    message: 'Match started successfully',
+                    type: AlertType.SUCCESS,
+                });
+
+                set({ updateLoading: false });
+            },
+
+            resetMatch: async (matchId: string, teamIdsToDelete: string[] = []) => {
+                set({ updateLoading: true });
+
+                const { error } = await supabase.rpc('reset_match', {
+                    p_match_id: matchId,
+                    p_team_ids: teamIdsToDelete,
+                });
+
+                if (error) {
+                    useAlertStore.getState().addAlert({
+                        message: error.message,
+                        type: AlertType.ERROR,
+                    });
+                    set({ updateLoading: false });
+                    return;
+                }
+
+                useAlertStore.getState().addAlert({
+                    message: 'Match reset successfully',
+                    type: AlertType.SUCCESS,
+                });
+
+                set({ updateLoading: false });
             },
 
             updateMatch: async (params: Partial<Match>) => {
@@ -218,6 +276,10 @@ export const useMatchStore = create<MatchState>()(
                                             : m
                                     ),
                                 }));
+
+                                useTagStore.getState().getLanes(payload.new.game);
+                                useTagStore.getState().getMaps(payload.new.game);
+
                                 useAlertStore.getState().addAlert({
                                     message: 'Match settings were updated',
                                     type: AlertType.INFO,
