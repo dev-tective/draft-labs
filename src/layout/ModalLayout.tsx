@@ -4,6 +4,7 @@ interface Props {
     bg?: boolean;
     children: React.ReactNode;
     isOpen?: boolean;
+    canClose?: boolean;
 }
 
 export interface ModalRef {
@@ -11,7 +12,7 @@ export interface ModalRef {
     close: () => void;
 }
 
-export const ModalLayout = forwardRef<ModalRef, Props>(({ children, bg = true, isOpen }, ref) => {
+export const ModalLayout = forwardRef<ModalRef, Props>(({ children, bg = true, isOpen, canClose = true }, ref) => {
     const [show, setShow] = useState(false);
 
     // Expose open and close methods to parent components
@@ -23,7 +24,7 @@ export const ModalLayout = forwardRef<ModalRef, Props>(({ children, bg = true, i
     }));
 
     const handleClose = () => {
-        setShow(false);
+        if (canClose) setShow(false);
     };
 
     // Use external isOpen if provided, otherwise use internal state

@@ -4,7 +4,7 @@ import { useMatchStore } from "@/stores/matchStore";
 import { CutOutBtn, CutOutBtnPrimary } from "@/components/CutOutBtn";
 import { useEffect, useRef, useState } from "react";
 import { ModalRef } from "@/layout/ModalLayout";
-import { CreateMatchModal } from "@/components/modals/CreateMatchModal";
+import { CreateRoomModal } from "@/components/modals/CreateRoomModal";
 import { JoinLobbyModal } from "@/components/modals/JoinLobbyModal";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { WarningMessage } from "@/components/shared/WarningMessage";
@@ -242,7 +242,7 @@ export const Match = () => {
 
     return (
         <>
-            <CreateMatchModal ref={createMatchModalRef} />
+            <CreateRoomModal ref={createMatchModalRef} />
             <JoinLobbyModal ref={joinLobbyModalRef} />
 
             <div className="min-h-full flex flex-col relative">
@@ -256,7 +256,7 @@ export const Match = () => {
                     <div className="flex-1 md:flex-none lg:w-md">
                         <CutOutBtnPrimary
                             icon="material-symbols:dashboard-customize"
-                            text="create match"
+                            text="Crear Sala"
                             onClick={() => createMatchModalRef.current?.open()}
                         />
                     </div>

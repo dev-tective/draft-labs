@@ -1,43 +1,50 @@
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Callback } from "./pages/auth/Callback";
-import { Login } from "./pages/auth/Login";
 import { Layout } from "./layout/Layout";
 import { Match } from "./pages/match/Match";
-import { ProtectedRoute } from "./components/ProtectedRoute";
 import { GamesPage } from "./pages/game/GamesPage";
+import { useUserStore } from "./stores/userStore";
+import { useEffect, useRef } from "react";
+import { UserModal } from "./components/modals/UserModal";
+import { ModalRef } from "./layout/ModalLayout";
 
 function App() {
+  const { user } = useUserStore();
+  const userModalRef = useRef<ModalRef>(null);
+
+  // Abre el modal automáticamente si no hay usuario
+  useEffect(() => {
+    if (!user) {
+      userModalRef.current?.open();
+    }
+  }, [user]);
+
   return (
     <BrowserRouter>
+      <UserModal ref={userModalRef} />
       <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<Login />} />
-        <Route path="/auth/callback" element={<Callback />} />
-
-        {/* Protected routes */}
         <Route
           path="/customize"
           element={
-            <ProtectedRoute>
-              <Layout><Match /></Layout>
-            </ProtectedRoute>
+            <Layout>
+              <Match />
+            </Layout>
           }
         />
         <Route
-          path="/match/:id?"
+          path="/:roomId?"
           element={
-            <ProtectedRoute>
-              <Layout><Match /></Layout>
-            </ProtectedRoute>
+            <Layout>
+              <Match />
+            </Layout>
           }
         />
         <Route
           path="/games"
           element={
-            <ProtectedRoute>
-              <Layout><GamesPage /></Layout>
-            </ProtectedRoute>
+            <Layout>
+              <GamesPage />
+            </Layout>
           }
         />
         {/* <Route
@@ -68,5 +75,3 @@ function App() {
 }
 
 export default App;
-
-
