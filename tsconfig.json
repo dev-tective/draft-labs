@@ -39,6 +39,12 @@
       ],
       "@/assets/*": [
         "src/assets/*"
+      ],
+      "@/room/*": [
+        "src/room/*"
+      ],
+      "@/staff/*": [
+        "src/staff/*"
       ]
     },
     /* Linting */

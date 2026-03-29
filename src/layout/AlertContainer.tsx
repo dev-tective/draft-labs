@@ -2,13 +2,15 @@ import { Icon } from "@iconify/react";
 import { useState, useEffect, useRef } from "react";
 import { useAlertStore, AlertType, Alert as AlertData } from "@/stores/alertStore";
 
-export interface AlertProps {
-    alert: AlertData;
-}
-
-export const Alert = ({ alert }: AlertProps) => {
+export const Alert = ({ alert }: { alert: AlertData }) => {
     const removeAlert = useAlertStore((state) => state.removeAlert);
-    const { id, message, type = AlertType.INFO, handleAction, duration = 5000 } = alert;
+    const {
+        id,
+        message,
+        type = AlertType.INFO,
+        handleAction,
+        duration = type === AlertType.WARNING ? 10000 : 5000
+    } = alert;
 
     const [isClosing, setIsClosing] = useState(false);
     const [isPaused, setIsPaused] = useState(false);

@@ -7,6 +7,7 @@ import { useUserStore } from "./stores/userStore";
 import { useEffect, useRef } from "react";
 import { UserModal } from "./components/modals/UserModal";
 import { ModalRef } from "./layout/ModalLayout";
+import { RoomPage } from "./room/RoomPage";
 
 function App() {
   const { user } = useUserStore();
@@ -35,7 +36,7 @@ function App() {
           path="/:roomId?"
           element={
             <Layout>
-              <Match />
+              <RoomPage />
             </Layout>
           }
         />

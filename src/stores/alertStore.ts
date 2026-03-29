@@ -17,7 +17,6 @@ export interface Alert {
 
 interface AlertStore {
     alerts: Alert[];
-
     addAlert: (alert: Omit<Alert, 'id'>) => void;
     removeAlert: (id: string) => void;
     clearAlerts: () => void;
@@ -25,12 +24,13 @@ interface AlertStore {
 
 const generateId = () => `alert-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-export const useAlertStore = create<AlertStore>((set) => ({
+export const useAlertStore = create<AlertStore>((set, get) => ({
     alerts: [],
 
-    addAlert: (alert) => set((state) => ({
-        alerts: [...state.alerts, { ...alert, id: generateId() }]
-    })),
+    addAlert: (alert) => set((state) => {
+        if (get().alerts.length >= 10) return state;
+        return { alerts: [...state.alerts, { ...alert, id: generateId() }] }
+    }),
 
     removeAlert: (id) => set((state) => ({
         alerts: state.alerts.filter((alert) => alert.id !== id)

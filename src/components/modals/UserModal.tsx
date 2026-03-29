@@ -9,7 +9,6 @@ export const UserModal = forwardRef<ModalRef, {}>((_, ref) => {
 
     const [username, setUsername] = useState(user?.username ?? "");
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     // Sync input when user changes (e.g. after hydration from localStorage)
     useEffect(() => {
@@ -20,7 +19,6 @@ export const UserModal = forwardRef<ModalRef, {}>((_, ref) => {
         if (!username.trim()) return;
 
         setLoading(true);
-        setError(null);
 
         try {
             if (isEditMode) {
@@ -31,7 +29,7 @@ export const UserModal = forwardRef<ModalRef, {}>((_, ref) => {
 
             ref && typeof ref !== "function" && ref.current?.close();
         } catch (err: any) {
-            setError(err.message);
+            console.error(err);
         } finally {
             setLoading(false);
         }
@@ -132,18 +130,6 @@ export const UserModal = forwardRef<ModalRef, {}>((_, ref) => {
                         </p>
                     )}
                 </div>
-
-                {/* Error */}
-                {error && (
-                    <div className="
-                        p-3 rounded-lg
-                        bg-red-950/30 border border-red-800
-                        text-red-400 text-sm
-                    ">
-                        <Icon icon="mdi:alert-circle" className="inline mr-2" />
-                        {error}
-                    </div>
-                )}
 
                 {/* Submit Button */}
                 <button

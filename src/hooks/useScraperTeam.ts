@@ -1,9 +1,11 @@
-import { supabase } from "@/supabaseClient";
+import { useState } from "react";
+import { supabaseCloud } from "@/supabaseClient";
 
 // Types para el team scraper
 export interface ScrapedPlayer {
     uid?: string;
     nickname: string;
+    is_active: boolean;
 }
 
 export interface ScrapedTeam {
@@ -16,30 +18,70 @@ export interface ScrapedTeam {
 // Función para mapear el objeto del scraper a nuestro formato
 const mapScrapedTeamToTeamData = (scrapedTeam: ScrapedTeam): ScrapedTeam => {
     return {
-        name: scrapedTeam.name,
-        acronym: scrapedTeam.acronym,
-        logo_url: scrapedTeam.logo_url,
-        players: scrapedTeam.players.map(p => ({
+        ...scrapedTeam,
+        players: (scrapedTeam.players || []).map(p => ({
             ...p,
             uid: p.uid ?? crypto.randomUUID(),
         })),
     };
 };
 
-export const fetchScrapedTeam = async (link: string): Promise<ScrapedTeam> => {
-    const { data, error } = await supabase.functions.invoke<ScrapedTeam>('team-scraper', {
-        body: { teamUrl: link },
+interface useScraperTeamState {
+    loading: boolean;
+    error: string | null;
+}
+
+export const useScraperTeam = () => {
+    const [state, setState] = useState<useScraperTeamState>({
+        loading: false,
+        error: null,
     });
 
-    if (error) {
-        throw new Error(error.message || 'Error al obtener datos del equipo');
-    }
+    const fetchTeam = async (url: string): Promise<ScrapedTeam> => {
+        setState({ loading: true, error: null });
 
-    if (!data) {
-        throw new Error('No se recibieron datos del scraper');
-    }
+        try {
+            const { data, error } = await supabaseCloud
+                .functions
+                .invoke<ScrapedTeam>('team-scraper', {
+                    body: { url },
+                });
 
-    console.table(data);
+            if (error || !data) throw error;
 
-    return mapScrapedTeamToTeamData(data);
+            console.log(data);
+
+            setState({ loading: false, error: null });
+            return mapScrapedTeamToTeamData(data);
+        } catch (error: any) {
+            setState({ loading: false, error: error.message });
+            throw error;
+        }
+    };
+
+    const fetchTournament = async (url: string): Promise<ScrapedTeam[]> => {
+        setState({ loading: true, error: null });
+
+        try {
+            const { data, error } = await supabaseCloud
+                .functions
+                .invoke<ScrapedTeam[]>('tournament-scraper', {
+                    body: { url },
+                });
+
+            if (error || !data) throw error;
+
+            setState({ loading: false, error: null });
+            return data.map(mapScrapedTeamToTeamData);
+        } catch (error: any) {
+            setState({ loading: false, error: error.message });
+            throw error;
+        }
+    };
+
+    return {
+        ...state,
+        fetchTeam,
+        fetchTournament,
+    };
 };

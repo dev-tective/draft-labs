@@ -68,8 +68,9 @@ const NavOption = ({ icon, label, href = "#", locked = false }: NavOptionProps) 
 
 const MENU_ITEMS = [
     { icon: "gridicons:customize", label: "Customize", href: "/customize" },
-    { icon: "fluent:people-team-20-filled", label: "Match", href: "/match" },
-    { icon: "material-symbols-light:swords", label: "Games", href: "/games", requiresMatch: true },
+    { icon: "fluent:people-team-20-filled", label: "Sala", href: "/" },
+    { icon: "fluent:people-team-20-filled", label: "Partidos", href: "/partidos" },
+    { icon: "material-symbols-light:swords", label: "Juegos", href: "/juegos", requiresMatch: true },
     { icon: "material-symbols:dashboard", label: "Draft", href: "/draft", requiresMatch: true },
 ];
 
@@ -91,11 +92,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 border-slate-800 bg-slate-900
             ">
                 <span className="hidden md:block p-6 mr-auto">
-                    <div className="text-xs text-cyan-400 font-bold tracking-widest">
-                        TACTICAL UNIT
+                    <div className="text-xs text-cyan-400 font-bold tracking-widest uppercase">
+                        Real-Time Overlay
                     </div>
                     <h1 className="text-2xl text-slate-200 text-nowrap font-bold tracking-tighter">
-                        DRAFT LABS
+                        DRAFT LAB
                         <span className="text-cyan-400">.</span>
                     </h1>
                 </span>

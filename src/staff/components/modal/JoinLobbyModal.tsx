@@ -1,24 +1,25 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-import { useStaffs, useCreateStaff, useRemoveStaff, StaffRole, Staff } from "@/hooks/useRoom";
+import { useCreateStaff } from "@/staff/hooks/useCreateStaff";
 import { AlertType, useAlertStore } from "@/stores/alertStore";
-import { useNavigate } from "react-router-dom";
-
+import { useStaffStore } from "@/staff/store/staffStore";
+import { useRemoveStaff } from "@/staff/hooks/useRemoveStaff";
+import { Staff, StaffRole } from "@/staff/staff.types";
+import { useRoomStore } from "@/room/store/roomStore";
 
 export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
     const [manualId, setManualId] = useState("");
-    const [removingId, setRemovingId] = useState<number | null>(null);
-    
-    const navigate = useNavigate();
-    const addAlert = useAlertStore((state) => state.addAlert);
 
-    const { data: staffList = [], refetch, isFetching, isLoading, error } = useStaffs();
-    const createStaffMutation = useCreateStaff();
-    const removeStaffMutation = useRemoveStaff();
+    // ── Store (reemplaza useStaffs) ──────────────────────────
+    const { myStaff, myStaffLoading, subscribeToMyStaff } = useStaffStore();
+    const { loading, createStaff } = useCreateStaff();
 
-    const isJoining = createStaffMutation.isPending;
+    // Suscribir al abrir el modal
+    useEffect(() => {
+        subscribeToMyStaff();
+    }, []);
 
     const closeModal = () => {
         if (ref && typeof ref !== 'function' && ref.current) {
@@ -27,42 +28,15 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
         }
     };
 
-    const handleNavigate = (roomId: number) => {
-        navigate(`/${roomId}`);
-        closeModal();
-        addAlert({
-            message: "Se ha unido a la sala",
-            type: AlertType.SUCCESS,
-        });
-    };
-
     const handleJoinById = async () => {
         if (!manualId.trim()) return;
         try {
-            await createStaffMutation.mutateAsync(Number(manualId.trim()));
-            navigate(`/${manualId.trim()}`);
+            await createStaff(manualId.trim());
             closeModal();
         } catch (err: any) {
             throw err;
         }
     };
-
-    const handleRemoveStaff = async (e: React.MouseEvent, staffId: number) => {
-        e.stopPropagation();
-        setRemovingId(staffId);
-        try {
-            addAlert({
-                message: "¿Estás seguro de que quieres salir de la sala? (Si eres dueño de la sala, se eliminará)",
-                type: AlertType.WARNING,
-                duration: 10000,
-                handleAction: () => removeStaffMutation.mutateAsync(staffId),
-            });
-        } finally {
-            setRemovingId(null);
-        }
-    };
-
-    const staff = staffList;
 
     return (
         <ModalLayout ref={ref}>
@@ -121,9 +95,9 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
                         />
                         <button
                             onClick={handleJoinById}
-                            disabled={!manualId.trim() || isJoining}
+                            disabled={!manualId.trim() || loading}
                             className="
-                                w-1/5 px-6 py-3
+                                px-6 py-3
                                 text-sm font-bold uppercase tracking-widest beveled-bl-tr
                                 border rounded-tr-xl rounded-bl-xl
                                 bg-fuchsia-950/70 border-fuchsia-400 text-fuchsia-400
@@ -133,7 +107,7 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
                                 flex items-center justify-center gap-2
                             "
                         >
-                            {isJoining ? (
+                            {loading ? (
                                 <Icon icon="line-md:loading-twotone-loop" className="text-xl" />
                             ) : (
                                 "Unirse"
@@ -144,51 +118,22 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
 
                 {/* Staff List */}
                 <div className="space-y-4 flex-1 overflow-hidden flex flex-col custom-scrollbar">
-                    <div className="flex justify-between items-center">
-                        <h2 className="flex items-center text-xs md:text-sm text-slate-200 uppercase tracking-widest">
-                            <Icon
-                                icon="fluent:people-team-20-filled"
-                                className="text-lg md:text-2xl mr-3 text-cyan-400"
-                            />
-                            Mis salas
-                        </h2>
-                        <button
-                            onClick={() => refetch()}
-                            disabled={isFetching}
-                            className={`
-                                flex items-center gap-2
-                                text-xs uppercase font-bold tracking-wider
-                                text-slate-400 hover:text-cyan-400
-                                transition-colors
-                                ${isFetching ? 'opacity-50 animate-pulse' : ''}
-                            `}
-                        >
-                            <Icon icon="ri:refresh-line" className={`text-lg md:text-xl ${isFetching ? 'animate-spin' : ''}`} />
-                            {isFetching ? 'Cargando...' : 'Actualizar'}
-                        </button>
-                    </div>
+                    <h2 className="flex items-center text-xs md:text-sm text-slate-200 uppercase tracking-widest">
+                        <Icon
+                            icon="fluent:people-team-20-filled"
+                            className="text-lg md:text-2xl mr-3 text-cyan-400"
+                        />
+                        Mis salas
+                    </h2>
 
-                    {error ? (
-                        <div className="flex-1 flex flex-col items-center justify-center py-10 text-red-400">
-                            <Icon icon="mdi:cloud-off-outline" className="text-6xl mb-4 opacity-50" />
-                            <p className="text-sm uppercase tracking-widest font-bold">
-                                Error al sincronizar
-                            </p>
-                            <button
-                                onClick={() => refetch()}
-                                className="mt-4 px-4 py-2 border border-red-400/30 bg-red-400/10 rounded-lg text-xs hover:bg-red-400/20 transition-all font-bold uppercase"
-                            >
-                                Reintentar
-                            </button>
-                        </div>
-                    ) : isLoading ? (
+                    {myStaffLoading ? (
                         <div className="flex-1 flex flex-col items-center justify-center py-10">
                             <LoadingSpinner size="lg" />
                             <p className="mt-4 text-xs uppercase tracking-widest text-slate-500 animate-pulse">
                                 Sincronizando salas...
                             </p>
                         </div>
-                    ) : staff.length === 0 ? (
+                    ) : myStaff.length === 0 ? (
                         <div className="text-center py-10 text-slate-500">
                             <Icon icon="mdi:inbox" className="text-6xl mx-auto mb-4" />
                             <p className="text-sm uppercase tracking-wider">
@@ -196,14 +141,12 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-y-auto space-y-3 pr-2">
-                            {staff.map((s) => (
+                        <div className="overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                            {myStaff.map((s) => (
                                 <LobbyCard
                                     key={s.id}
-                                    removingId={removingId}
                                     staff={s}
-                                    handleNavigate={handleNavigate}
-                                    handleRemoveStaff={handleRemoveStaff}
+                                    handleClose={closeModal}
                                 />
                             ))}
                         </div>
@@ -214,37 +157,49 @@ export const JoinLobbyModal = forwardRef<ModalRef, {}>((_props, ref) => {
     );
 });
 
-interface LobbyCardProps {
-    staff: Staff;
-    removingId: number | null;
-    handleNavigate: (roomId: number) => void;
-    handleRemoveStaff: (e: React.MouseEvent, staffId: number) => Promise<void>;
-}
+// LobbyCard sin cambios — solo tipado desde el store
+const LobbyCard = ({ staff, handleClose }: { staff: Staff, handleClose: () => void }) => {
+    const { removeStaff, loading } = useRemoveStaff();
+    const { subscribeToRoomStaff, roomStaffLoading } = useRoomStore();
+    const addAlert = useAlertStore((state) => state.addAlert);
 
-const LobbyCard = ({ staff, removingId, handleNavigate, handleRemoveStaff }: LobbyCardProps) => {
-    const { id, room_id, role, rooms, created_at } = staff
+    const { id, room_id, role, rooms, created_at } = staff;
     const isOwner = role === StaffRole.OWNER;
-    const isRemoving = removingId === id;
+    const isLoading = loading || roomStaffLoading;
+
+    const handleRemoveStaff = (e: React.MouseEvent) => {
+        e.stopPropagation(); // evita navegar al hacer click en el botón
+        addAlert({
+            message: "¿Estás seguro de que quieres salir de la sala? (Si eres dueño de la sala, se eliminará)",
+            type: AlertType.WARNING,
+            handleAction: () => removeStaff(id),
+        });
+    };
+
+    const handleSubscribe = () => {
+        handleClose();
+        subscribeToRoomStaff(room_id);
+    }
 
     return (
         <div
             role="button"
             tabIndex={0}
-            onClick={() => handleNavigate(room_id)}
+            onClick={handleSubscribe}
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    handleNavigate(room_id);
+                    handleSubscribe();
                 }
             }}
             className="
-                    p-4
-                    bg-slate-900/30
-                    border border-slate-700
-                    rounded-tr-xl rounded-bl-xl beveled-bl-tr
-                    hover:border-cyan-500 hover:bg-slate-900/50
-                    cursor-pointer transition-all
-                "
+                p-4
+                bg-slate-900/30
+                border border-slate-700
+                rounded-tr-xl rounded-bl-xl beveled-bl-tr
+                hover:border-cyan-500 hover:bg-slate-900/50
+                cursor-pointer transition-all
+            "
         >
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -257,18 +212,21 @@ const LobbyCard = ({ staff, removingId, handleNavigate, handleRemoveStaff }: Lob
                         </span>
                         {isOwner && (
                             <span className="
-                                    flex items-center gap-1
-                                    text-xs font-bold uppercase tracking-wider
-                                    text-amber-400 border border-amber-400/40
-                                    bg-amber-400/10 px-2 py-0.5 rounded-full
-                                ">
+                                flex items-center gap-1
+                                text-xs font-bold uppercase tracking-wider
+                                text-amber-400 border border-amber-400/40
+                                bg-amber-400/10 px-2 py-0.5 rounded-full
+                            ">
                                 <Icon icon="mdi:crown" className="text-sm" />
                                 Líder
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-slate-400 font-mono">
+                    <p className="text-sm text-slate-400 font-mono">
                         ID: {room_id}
+                    </p>
+                    <p className="text-sm text-slate-400 font-mono">
+                        MIEMBROS: {rooms.staff[0].count}/20
                     </p>
                     <p className="text-xs text-slate-500">
                         {new Date(created_at).toLocaleDateString('es', {
@@ -283,17 +241,17 @@ const LobbyCard = ({ staff, removingId, handleNavigate, handleRemoveStaff }: Lob
 
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={(e) => handleRemoveStaff(e, staff.id)}
-                        disabled={isRemoving}
+                        onClick={handleRemoveStaff}
+                        disabled={isLoading}
                         title={isOwner ? "Eliminar sala" : "Abandonar sala"}
                         className="
-                                p-2 rounded-lg
-                                text-slate-500 hover:text-fuchsia-500
-                                transition-all
-                                disabled:opacity-50 disabled:cursor-not-allowed
-                            "
+                            p-2 rounded-lg
+                            text-slate-500 hover:text-fuchsia-500
+                            transition-all
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                        "
                     >
-                        {isRemoving ? (
+                        {isLoading ? (
                             <Icon icon="mdi:loading" className="text-xl animate-spin" />
                         ) : (
                             <Icon
@@ -302,9 +260,12 @@ const LobbyCard = ({ staff, removingId, handleNavigate, handleRemoveStaff }: Lob
                             />
                         )}
                     </button>
-                    <Icon icon="mdi:arrow-right" className="text-2xl text-slate-500" />
+                    <Icon
+                        icon="mdi:arrow-right"
+                        className="text-2xl text-slate-500"
+                    />
                 </div>
             </div>
         </div>
     );
-}
+};

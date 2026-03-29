@@ -1,72 +1,59 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { Option } from "@/components/Option";
-import { RoomGame, useCreateRoom } from "@/hooks/useRoom";
-
-interface SectionProps {
-    title: string;
-    icon: string;
-    iconColor?: string;
-    children: React.ReactNode;
-}
-
-const Section = ({ title, icon, iconColor = 'text-cyan-400', children }: SectionProps) => {
-    const [show, setShow] = useState(true);
-
-    return (
-        <div className="space-y-4">
-            <h2 className="
-                flex items-center
-                text-xs md:text-sm 
-                text-slate-200 uppercase tracking-widest
-            ">
-                <Icon
-                    icon={icon}
-                    className={`text-lg md:text-2xl mr-3 ${iconColor}`}
-                />
-                {title}
-                <Icon
-                    icon={show ? 'ri:arrow-up-s-fill' : 'ri:arrow-down-s-fill'}
-                    width="24"
-                    height="24"
-                    className="md:hidden"
-                    onClick={() => setShow(!show)}
-                />
-            </h2>
-
-            {show && children}
-        </div >
-    );
-};
+import { Option } from "@/components/shared/Option";
+import { useCreateRoom } from "@/room/hooks/useCreateRoom";
+import { useScraperTeam, ScrapedTeam } from "@/hooks/useScraperTeam";
+import { SupportedPlatforms } from "@/components/shared/SupportedPlatforms";
+import { ModalSection } from "@/components/shared/ModalSection";
+import { RoomGame } from "@/room/room.types";
 
 export const CreateRoomModal = forwardRef<ModalRef, {}>((_props, ref) => {
     const [selectedGame, setSelectedGame] = useState<RoomGame>(RoomGame.MLBB);
     const [bansPerTeam, setBansPerTeam] = useState<number>(5);
     const [isGlobalBan, setIsGlobalBan] = useState<boolean>(false);
-
+    const [tournamentUrl, setTournamentUrl] = useState('');
     const bansValues = [0, 3, 5, 7];
     const bansIndex = bansValues.indexOf(bansPerTeam);
 
-    const createRoom = useCreateRoom();
+    // Hooks
+    const { loading: isScraping, error: scrapeError, fetchTournament } = useScraperTeam();
+    const [scrapedTeams, setScrapedTeams] = useState<ScrapedTeam[] | null>(null);
+    const {createRoom, loading }= useCreateRoom();
+
+    const isLoading = isScraping || loading;
 
     const closeModal = () => {
+        if (isLoading) return;
         if (ref && typeof ref !== 'function' && ref.current) {
+            setTournamentUrl('');
+            setScrapedTeams(null);
             ref.current.close();
         }
     };
 
+    const handleScrape = async () => {
+        if (!tournamentUrl.trim()) return;
+        setScrapedTeams(null);
+        const teams = await fetchTournament(tournamentUrl.trim());
+        setScrapedTeams(teams);
+    };
+
     const handleSubmit = async () => {
-        await createRoom.mutateAsync({
+        await createRoom({
             game: selectedGame,
             bans_per_team: bansPerTeam,
             is_global_ban: isGlobalBan,
+            teams: scrapedTeams ?? [],
         });
         closeModal();
     };
 
     return (
-        <ModalLayout ref={ref}>
+        <ModalLayout
+            ref={ref}
+            canClose={!isScraping}
+        >
             <div className="
                 absolute flex flex-col
                 max-w-2xl w-10/12
@@ -78,23 +65,121 @@ export const CreateRoomModal = forwardRef<ModalRef, {}>((_props, ref) => {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-xl md:text-2xl text-slate-200 uppercase tracking-widest font-bold italic">
+                        <h1 className="
+                            text-xl md:text-2xl text-slate-200 
+                            uppercase tracking-widest font-bold italic
+                        ">
                             Crear Sala
                         </h1>
-                        <p className="text-cyan-500 text-xs md:text-sm tracking-wider uppercase">
+                        <p className="
+                            text-cyan-500 text-xs md:text-sm 
+                            tracking-wider uppercase
+                        ">
                             Configura las especificaciones
                         </p>
                     </div>
                     <button
                         onClick={closeModal}
-                        className="text-slate-500 hover:text-cyan-400 transition-colors"
+                        disabled={isScraping}
+                        className="
+                            text-slate-500 hover:text-cyan-400 
+                            transition-colors 
+                            disabled:opacity-30 disabled:cursor-not-allowed
+                        "
                     >
-                        <Icon icon="mdi:close" className="text-3xl" />
+                        <Icon
+                            icon="mdi:close"
+                            className="text-3xl"
+                        />
                     </button>
                 </div>
 
+                {/* Tournament URL Scraper */}
+                <ModalSection
+                    icon="mdi:tournament"
+                    iconColor="text-amber-400"
+                    title="Importar Equipos"
+                >
+                    <div className="space-y-3">
+                        <SupportedPlatforms />
+                        <div className="flex flex-col md:flex-row gap-2">
+                            <input
+                                type="url"
+                                value={tournamentUrl}
+                                onChange={(e) => {
+                                    setTournamentUrl(e.target.value);
+                                    // Reset teams when user changes URL
+                                    if (scrapedTeams) {
+                                        setScrapedTeams(null);
+                                    }
+                                }}
+                                disabled={isScraping}
+                                placeholder="https://play.toornament.com/..."
+                                className="
+                                    flex-1 bg-slate-900/60 border border-slate-700
+                                    beveled-bl-tr rounded-tr-xl rounded-bl-xl
+                                    px-4 py-2.5 text-sm text-slate-200
+                                    placeholder:text-slate-600
+                                    focus:outline-none focus:border-amber-400
+                                    transition-colors
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                "
+                            />
+                            <button
+                                onClick={handleScrape}
+                                disabled={isScraping || !tournamentUrl.trim()}
+                                className="
+                                    max-w-56 px-4 py-2.5
+                                    beveled-bl-tr
+                                    border rounded-tr-xl rounded-bl-xl
+                                    text-xs uppercase tracking-widest font-bold
+                                    transition-all
+                                    bg-amber-950/50 border-amber-500 text-amber-400
+                                    hover:bg-amber-400 hover:text-slate-950
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                    flex items-center gap-2 whitespace-nowrap
+                                "
+                            >
+                                {isScraping
+                                    ? <Icon icon="line-md:loading-twotone-loop" className="text-lg" />
+                                    : <Icon icon="mdi:download" className="text-lg" />
+                                }
+                                {isScraping ? 'Extrayendo...' : 'Extraer'}
+                            </button>
+                        </div>
+
+                        {/* Scrape result feedback */}
+                        {scrapedTeams && (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-950/50 border border-emerald-600 text-emerald-400">
+                                <Icon icon="mdi:check-circle" className="text-lg shrink-0" />
+                                <span className="text-xs font-medium tracking-wide">
+                                    {scrapedTeams.length} equipo{scrapedTeams.length !== 1 ? 's' : ''} encontrado{scrapedTeams.length !== 1 ? 's' : ''}
+                                </span>
+                            </div>
+                        )}
+
+                        {scrapeError && (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-950/50 border border-red-600 text-red-400">
+                                <Icon icon="mdi:alert-circle" className="text-lg shrink-0" />
+                                <span className="text-xs font-medium tracking-wide truncate">
+                                    {scrapeError}
+                                </span>
+                            </div>
+                        )}
+
+                        {isScraping && (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-950/30 border border-amber-700/50 text-amber-400/80">
+                                <Icon icon="line-md:loading-twotone-loop" className="text-lg shrink-0" />
+                                <span className="text-xs font-medium tracking-wide">
+                                    Extrayendo equipos del torneo...
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </ModalSection>
+
                 {/* Game Selection */}
-                <Section
+                <ModalSection
                     icon="ion:game-controller"
                     title="Seleccionar Juego"
                 >
@@ -109,17 +194,17 @@ export const CreateRoomModal = forwardRef<ModalRef, {}>((_props, ref) => {
                             />
                         ))}
                     </div>
-                </Section>
+                </ModalSection>
 
                 {/* Bans Counter */}
-                <Section
+                <ModalSection
                     icon="ph:prohibit-inset-bold"
                     iconColor="text-fuchsia-500"
                     title="Bans por Equipo"
                 >
-                    <div className="flex md:flex-col items-center gap-6">
+                    <div className="flex flex-row-reverse items-center gap-6">
                         <div className="text-center">
-                            <span className="text-2xl md:text-6xl font-bold text-fuchsia-500 tracking-wider">
+                            <span className="text-2xl md:text-5xl font-bold text-fuchsia-500 tracking-wider">
                                 {bansPerTeam}
                             </span>
                             <p className="text-slate-500 text-xs uppercase tracking-widest mt-2">
@@ -168,10 +253,10 @@ export const CreateRoomModal = forwardRef<ModalRef, {}>((_props, ref) => {
                             </div>
                         </div>
                     </div>
-                </Section>
+                </ModalSection>
 
                 {/* Global Ban Toggle */}
-                <Section
+                <ModalSection
                     icon="mdi:earth"
                     iconColor="text-cyan-500"
                     title="Ban Global"
@@ -197,12 +282,12 @@ export const CreateRoomModal = forwardRef<ModalRef, {}>((_props, ref) => {
                             {isGlobalBan ? "Activado" : "Desactivado"}
                         </span>
                     </button>
-                </Section>
+                </ModalSection>
 
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={createRoom.isPending}
+                    disabled={isLoading}
                     className="
                         w-full py-3 md:py-4
                         text-lg font-bold uppercase 
@@ -215,10 +300,14 @@ export const CreateRoomModal = forwardRef<ModalRef, {}>((_props, ref) => {
                         flex items-center justify-center gap-2
                     "
                 >
-                    {createRoom.isPending && (
+                    {isLoading && (
                         <Icon icon="line-md:loading-twotone-loop" className="text-2xl" />
                     )}
-                    {createRoom.isPending ? 'Creando...' : 'Crear Sala'}
+                    {loading ?
+                        'Creando...'
+                        : isScraping ?
+                            'Esperando extracción...'
+                            : 'Crear Sala'}
                 </button>
             </div>
         </ModalLayout>

@@ -73,7 +73,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
   border-radius: 0;
 }
 

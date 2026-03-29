@@ -4,8 +4,8 @@ import { useMatchStore } from "@/stores/matchStore";
 import { CutOutBtn, CutOutBtnPrimary } from "@/components/CutOutBtn";
 import { useEffect, useRef, useState } from "react";
 import { ModalRef } from "@/layout/ModalLayout";
-import { CreateRoomModal } from "@/components/modals/CreateRoomModal";
-import { JoinLobbyModal } from "@/components/modals/JoinLobbyModal";
+import { CreateRoomModal } from "@/room/components/modal/CreateRoomModal";
+import { JoinLobbyModal } from "@/staff/components/modal/JoinLobbyModal";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { WarningMessage } from "@/components/shared/WarningMessage";
 import { Icon } from "@iconify/react";
@@ -263,7 +263,7 @@ export const Match = () => {
                     <div className="flex gap-4 w-full lg:max-w-sm">
                         <CutOutBtn
                             icon="material-symbols:sensor-door"
-                            text="join lobby"
+                            text="Unirse"
                             onClick={() => joinLobbyModalRef.current?.open()}
                         />
                     </div>

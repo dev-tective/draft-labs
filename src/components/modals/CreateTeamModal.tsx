@@ -1,105 +1,12 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { fetchScrapedTeam, ScrapedTeam } from "@/hooks/useScraperTeam";
-import { useTeamStore } from "@/stores/teamStore";
-import { useMatchStore } from "@/stores/matchStore";
-import { useSortable } from "@dnd-kit/react/sortable";
-import { DragDropProvider } from "@dnd-kit/react";
+import { useScraperTeam, ScrapedTeam } from "@/hooks/useScraperTeam";
+import { useCreateTeam } from "@/hooks/useTeam";
+import { SupportedPlatforms } from "@/components/shared/SupportedPlatforms";
+import { ModalSection } from "@/components/shared/ModalSection";
 
-interface PlayerInputProps {
-    uid: string;
-    nickname: string;
-    index: number;
-    updatePlayerNickname: (index: number, nickname: string) => void;
-    removePlayer: (index: number) => void;
-}
-
-const PlayerInput = ({ uid, nickname, index, updatePlayerNickname, removePlayer }: PlayerInputProps) => {
-    const { ref, handleRef } = useSortable({ id: uid, index });
-    
-    return (
-        <div
-            ref={ref}
-            className="
-                relative group
-                flex items-center gap-2
-                w-full px-3 py-2
-                bg-slate-800/50 border border-slate-700
-                rounded-lg
-                transition-colors
-                hover:border-slate-500
-            "
-        >
-            <Icon
-                icon="icon-park-outline:drag"
-                className="text-slate-500 cursor-grab shrink-0 hover:text-slate-300 transition-colors"
-                width={18}
-                height={18}
-                ref={handleRef}
-            />
-            <input
-                type="text"
-                value={nickname}
-                onChange={(e) => updatePlayerNickname(index, e.target.value)}
-                placeholder="Player name"
-                className="
-                    flex-1 min-w-0
-                    bg-transparent
-                    text-sm text-slate-300
-                    tracking-wider
-                    placeholder:text-slate-600
-                    focus:outline-none
-                "
-            />
-            <button
-                onClick={() => removePlayer(index)}
-                className="
-                    shrink-0
-                    w-5 h-5
-                    bg-fuchsia-500/80
-                    hover:bg-fuchsia-500
-                    rounded-full
-                    flex items-center justify-center
-                    opacity-0 group-hover:opacity-100
-                    transition-opacity
-                    text-white
-                "
-                title="Remove player"
-            >
-                <Icon icon="mdi:close" width={12} height={12} />
-            </button>
-        </div>
-    );
-};
-
-interface SectionProps {
-    title: string;
-    icon: string;
-    iconColor?: string;
-    children: React.ReactNode;
-}
-
-const Section = ({ title, icon, iconColor = 'text-cyan-400', children }: SectionProps) => {
-    return (
-        <div className="space-y-4">
-            <h2 className="
-                flex items-center
-                text-xs md:text-sm 
-                text-slate-200 uppercase tracking-widest
-            ">
-                <Icon
-                    icon={icon}
-                    className={`text-lg md:text-2xl mr-3 ${iconColor}`}
-                />
-                {title}
-            </h2>
-            {children}
-        </div>
-    );
-};
-
-export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
+export const CreateTeamModal = forwardRef<ModalRef, { roomId: string }>(({ roomId }, ref) => {
     const [teamUrl, setTeamUrl] = useState("");
     const [scrapedTeam, setScrapedTeam] = useState<ScrapedTeam>({
         name: "",
@@ -107,27 +14,19 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
         logo_url: "",
         players: []
     });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+
+    // Scraper hook
+    const { loading: isScraping, error: scrapeError, fetchTeam } = useScraperTeam();
 
     // Hook for creating team
-    const { currentMatch } = useMatchStore();
-    const { createTeam } = useTeamStore();
+    const { createTeam, loading } = useCreateTeam();
+
+    const isLoading = isScraping || loading;
 
     const handleScrape = async () => {
         if (!teamUrl.trim()) return;
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            const data = await fetchScrapedTeam(teamUrl.trim());
-            setScrapedTeam(data);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Error fetching team data');
-        } finally {
-            setLoading(false);
-        }
+        const data = await fetchTeam(teamUrl.trim());
+        setScrapedTeam(data);
     };
 
     // Métodos para actualizar datos específicos de scrapedTeam
@@ -152,7 +51,7 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
     const addPlayer = () => {
         setScrapedTeam({
             ...scrapedTeam,
-            players: [{ uid: crypto.randomUUID(), nickname: "" }, ...scrapedTeam.players]
+            players: [{ uid: crypto.randomUUID(), nickname: "", is_active: false }, ...scrapedTeam.players]
         });
     };
 
@@ -171,21 +70,16 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
     };
 
     const handleCreateTeam = async () => {
-        if (!scrapedTeam.name.trim() || !scrapedTeam.acronym.trim()) return;
-
-        if (scrapedTeam.players.length < 5) {
-            setError("Team must have at least 5 players");
-            return;
-        }
+        if (!scrapedTeam.name.trim()) return;
 
         // Format players data - filter out empty nicknames
         const formattedPlayers = scrapedTeam.players
             .filter(p => p.nickname.trim())
-            .map(p => ({ nickname: p.nickname.trim() }));
+            .map(p => ({ nickname: p.nickname.trim(), is_active: p.is_active }));
 
         await createTeam(
             {
-                match_id: currentMatch?.id ?? '',
+                room_id: roomId ?? '',
                 name: scrapedTeam.name.trim(),
                 acronym: scrapedTeam.acronym.trim(),
                 logo_url: scrapedTeam.logo_url || undefined,
@@ -197,11 +91,10 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
         ref && typeof ref !== 'function' && ref.current?.close();
         setTeamUrl("");
         setScrapedTeam({ name: "", acronym: "", logo_url: "", players: [] });
-        setError(null);
     };
 
     return (
-        <ModalLayout ref={ref}>
+        <ModalLayout ref={ref} canClose={!loading && !isScraping}>
             <div className="
                 absolute flex flex-col
                 max-w-2xl w-10/12
@@ -215,89 +108,92 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-xl md:text-2xl text-slate-200 uppercase tracking-widest font-bold italic">
-                            Create Team
+                            Crear Equipo
                         </h1>
                         <p className="text-cyan-500 text-xs md:text-sm tracking-wider uppercase">
-                            Enter team URL
+                            Introduce la URL del equipo
                         </p>
                     </div>
                     <button
                         onClick={() => ref && typeof ref !== 'function' && ref.current?.close()}
-                        className="text-slate-500 hover:text-cyan-400 transition-colors"
+                        disabled={isLoading}
+                        className="text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                         <Icon icon="mdi:close" className="text-3xl" />
                     </button>
                 </div>
 
                 {/* URL Input Section */}
-                <Section
+                <ModalSection
                     icon="mdi:link-variant"
-                    iconColor="text-cyan-500"
-                    title="Team URL"
+                    iconColor="text-amber-400"
+                    title="URL del Equipo"
                 >
-                    <div className="flex flex-col md:flex-row gap-3">
-                        <input
-                            type="url"
-                            value={teamUrl}
-                            onChange={(e) => setTeamUrl(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="https://example.com/team"
-                            className="
-                                flex-1
-                                px-4 py-3
-                                bg-slate-900/50
-                                border border-slate-700
-                                rounded-tr-xl rounded-bl-xl
-                                beveled-bl-tr
-                                text-slate-200
-                                placeholder:text-slate-600
-                                focus:outline-none
-                                focus:border-cyan-500
-                                transition-colors
-                            "
-                        />
-                        <button
-                            onClick={handleScrape}
-                            disabled={!teamUrl.trim() || loading}
-                            className="
-                                px-6 py-3
-                                text-sm font-bold uppercase 
-                                tracking-widest beveled-bl-tr
-                                border rounded-tr-xl rounded-bl-xl
-                                bg-cyan-950/70 border-cyan-400 text-cyan-400
-                                transition-all
-                                hover:bg-cyan-400 hover:text-slate-950
-                                disabled:opacity-50 disabled:cursor-not-allowed
-                                flex items-center justify-center gap-2
-                            "
-                        >
-                            {loading && (
-                                <Icon
-                                    icon="line-md:loading-twotone-loop"
-                                    className="text-xl"
-                                />
-                            )}
-                            {loading ? 'Fetching...' : 'Fetch Data'}
-                        </button>
-                    </div>
-
-                    {/* Error Messages */}
-                    {error && (
-                        <div className="
-                            p-3 rounded-lg
-                            bg-red-950/30 border border-red-800
-                            text-red-400 text-sm
-                        ">
-                            <Icon icon="mdi:alert-circle" className="inline mr-2" />
-                            {error}
+                    <div className="space-y-3">
+                        <SupportedPlatforms />
+                        <div className="flex flex-col md:flex-row gap-3">
+                            <input
+                                type="url"
+                                value={teamUrl}
+                                onChange={(e) => setTeamUrl(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                disabled={isLoading}
+                                placeholder="https://battlefy.com/..."
+                                className="
+                                    flex-1
+                                    px-4 py-3
+                                    bg-slate-900/50
+                                    border border-slate-700
+                                    rounded-tr-xl rounded-bl-xl
+                                    beveled-bl-tr
+                                    text-slate-200
+                                    placeholder:text-slate-600
+                                    focus:outline-none
+                                    focus:border-amber-400
+                                    transition-colors
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                "
+                            />
+                            <button
+                                onClick={handleScrape}
+                                disabled={!teamUrl.trim() || isLoading}
+                                className="
+                                    px-6 py-3
+                                    text-sm font-bold uppercase 
+                                    tracking-widest beveled-bl-tr
+                                    border rounded-tr-xl rounded-bl-xl
+                                    bg-amber-950/50 border-amber-400 text-amber-400
+                                    transition-all
+                                    hover:bg-amber-400 hover:text-slate-950
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                    flex items-center justify-center gap-2
+                                "
+                            >
+                                {isScraping ? (
+                                    <Icon
+                                        icon="line-md:loading-twotone-loop"
+                                        className="text-xl"
+                                    />
+                                ) : (
+                                    <Icon icon="mdi:download" className="text-xl" />
+                                )}
+                                {isScraping ? 'Obteniendo...' : 'Extraer Datos'}
+                            </button>
                         </div>
-                    )}
-                </Section>
+                        {scrapeError && (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-950/50 border border-red-600 text-red-400 mt-3">
+                                <Icon icon="mdi:alert-circle" className="text-lg shrink-0" />
+                                <span className="text-xs font-medium tracking-wide truncate">
+                                    {scrapeError}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </ModalSection>
 
-                <Section
+                <ModalSection
                     icon="ri:edit-fill"
-                    iconColor="text-fuchsia-500"
-                    title="Edit Team"
+                    title="Editar Equipo"
                 >
                     <div className="
                             p-5
@@ -327,7 +223,7 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                                     type="text"
                                     value={scrapedTeam.name}
                                     onChange={(e) => updateTeamName(e.target.value)}
-                                    placeholder="Team name"
+                                    placeholder="Nombre"
                                     className="
                                         w-full
                                         text-xl font-bold text-cyan-400
@@ -346,7 +242,7 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                                     type="text"
                                     value={scrapedTeam.acronym}
                                     onChange={(e) => updateTeamAcronym(e.target.value)}
-                                    placeholder="Team acronym"
+                                    placeholder="Siglas"
                                     className="
                                         w-full
                                         text-sm text-slate-400 uppercase tracking-wider
@@ -366,7 +262,7 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <h4 className="text-xs text-slate-500 uppercase tracking-wider">
-                                    Players ({scrapedTeam.players.length})
+                                    Jugadores ({scrapedTeam.players.length})
                                 </h4>
                                 <button
                                     onClick={addPlayer}
@@ -383,15 +279,13 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                                     "
                                 >
                                     <Icon icon="mdi:plus" width={14} height={14} />
-                                    Add player
+                                    Añadir jugador
                                 </button>
                             </div>
-                            <DragDropProvider>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                     {scrapedTeam.players.map((player, index) => (
                                         <PlayerInput
-                                            key={player.uid ?? index}
-                                            uid={player.uid ?? String(index)}
+                                            key={index}
                                             nickname={player.nickname}
                                             index={index}
                                             updatePlayerNickname={updatePlayerNickname}
@@ -399,10 +293,9 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                                         />
                                     ))}
                                 </div>
-                            </DragDropProvider>
                         </div>
                     </div>
-                </Section>
+                </ModalSection>
 
                 {/* Action Buttons */}
                 <div className="flex gap-3">
@@ -415,7 +308,6 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                                 logo_url: "",
                                 players: []
                             });
-                            setError(null);
                         }}
                         className="
                             flex-1 py-3
@@ -427,11 +319,11 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                             hover:bg-slate-800 hover:border-slate-600
                         "
                     >
-                        Clear
+                        Limpiar
                     </button>
                     <button
                         onClick={handleCreateTeam}
-                        disabled={!scrapedTeam.name.trim() || !scrapedTeam.acronym.trim()}
+                        disabled={!scrapedTeam.name.trim() || isLoading}
                         className="
                             flex-1 py-3
                             text-sm font-bold uppercase 
@@ -444,10 +336,73 @@ export const CreateTeamModal = forwardRef<ModalRef, {}>((_, ref) => {
                             flex items-center justify-center gap-2
                         "
                     >
-                        Create Team
+                        Crear Equipo
                     </button>
                 </div>
             </div>
         </ModalLayout>
     );
 });
+
+interface PlayerInputProps {
+    nickname: string;
+    index: number;
+    updatePlayerNickname: (index: number, nickname: string) => void;
+    removePlayer: (index: number) => void;
+}
+
+const PlayerInput = ({
+    nickname,
+    index,
+    updatePlayerNickname,
+    removePlayer
+}: PlayerInputProps) => {
+    return (
+        <div
+            className="
+                relative group
+                flex items-center gap-2
+                w-full px-3 py-2
+                bg-slate-800/50 border border-slate-700
+                rounded-lg
+                transition-colors
+                hover:border-fuchsia-500
+            "
+        >
+            <input
+                type="text"
+                value={nickname}
+                onChange={(e) => updatePlayerNickname(index, e.target.value)}
+                placeholder="Nickname"
+                className="
+                    flex-1 min-w-0
+                    bg-transparent
+                    text-sm text-slate-300
+                    tracking-wider
+                    placeholder:text-slate-600
+                    focus:outline-none
+                "
+            />
+
+            <button
+                onClick={() => removePlayer(index)}
+                className="
+                    shrink-0
+                    w-5 h-5
+                    rounded-full
+                    flex items-center justify-center
+                    opacity-0 group-hover:opacity-100
+                    transition-opacity
+                    text-fuchsia-500
+                "
+                title="Eliminar jugador"
+            >
+                <Icon
+                    icon="mdi:close"
+                    width={20}
+                    height={20}
+                />
+            </button>
+        </div>
+    );
+};

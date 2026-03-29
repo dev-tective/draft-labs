@@ -1,8 +1,10 @@
 import { forwardRef, useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { Team, useTeamStore } from "@/stores/teamStore";
+import { Team } from "@/stores/teamStore";
+import { useUpdateTeam } from "@/hooks/useTeam";
 import SHIELD from "@/assets/ui/shield.svg";
+import { ModalSection } from "@/components/shared/ModalSection";
 
 interface EditTeamModalProps {
     team: Team;
@@ -27,15 +29,15 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
         setForm(buildForm(team));
     }, [team]);
 
-    const { updateTeam, updateLoading } = useTeamStore();
+    const { updateTeam, loading: updateLoading } = useUpdateTeam();
 
     const handleSubmit = async () => {
-        if (!name.trim() || !acronym.trim()) return;
+        if (!name.trim()) return;
 
         await updateTeam({
             id: team.id,
             name: name.trim(),
-            acronym: acronym.trim(),
+            acronym: acronym?.trim(),
             coach: coach.trim() || undefined,
             logo_url: (useCustomLogo && logoUrl?.trim()) ? logoUrl.trim() : undefined,
         });
@@ -50,7 +52,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
     };
 
     return (
-        <ModalLayout ref={ref}>
+        <ModalLayout ref={ref} canClose={!updateLoading}>
             <div className="
                 absolute flex flex-col
                 max-w-2xl w-10/12
@@ -63,38 +65,31 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-xl md:text-2xl text-slate-200 uppercase tracking-widest font-bold italic">
-                            Edit Team
+                            Editar Equipo
                         </h1>
                         <p className="text-cyan-500 text-xs md:text-sm tracking-wider uppercase">
-                            Modify team information
+                            Modifica la información del equipo
                         </p>
                     </div>
                     <button
                         onClick={() => ref && typeof ref !== 'function' && ref.current?.close()}
-                        className="text-slate-500 hover:text-cyan-400 transition-colors"
+                        disabled={updateLoading}
+                        className="text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                         <Icon icon="mdi:close" className="text-3xl" />
                     </button>
                 </div>
 
                 {/* Name Field */}
-                <div className="space-y-4">
-                    <h2 className="
-                        flex items-center
-                        text-xs md:text-sm 
-                        text-slate-200 uppercase tracking-widest
-                    ">
-                        <Icon
-                            icon="ri:team-fill"
-                            className="text-lg md:text-2xl mr-3 text-cyan-400"
-                        />
-                        Team Name
-                    </h2>
+                <ModalSection
+                    title="Nombre del Equipo"
+                    icon="ri:team-fill"
+                >
                     <input
                         type="text"
                         value={name}
                         onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Enter team name"
+                        placeholder="Introduce el nombre del equipo"
                         className="
                             w-full
                             px-4 py-3
@@ -109,26 +104,18 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                             transition-colors
                         "
                     />
-                </div>
+                </ModalSection>
 
                 {/* Acronym Field */}
-                <div className="space-y-4">
-                    <h2 className="
-                        flex items-center
-                        text-xs md:text-sm 
-                        text-slate-200 uppercase tracking-widest
-                    ">
-                        <Icon
-                            icon="mdi:format-letter-case"
-                            className="text-lg md:text-2xl mr-3 text-cyan-400"
-                        />
-                        Team Acronym
-                    </h2>
+                <ModalSection
+                    title="Siglas del Equipo"
+                    icon="mdi:format-letter-case"
+                >
                     <input
                         type="text"
                         value={acronym}
                         onChange={(e) => setForm(prev => ({ ...prev, acronym: e.target.value }))}
-                        placeholder="Enter team acronym"
+                        placeholder="Siglas (máx. 5)"
                         maxLength={5}
                         className="
                             w-full
@@ -144,26 +131,18 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                             transition-colors
                         "
                     />
-                </div>
+                </ModalSection>
 
                 {/* Coach Field */}
-                <div className="space-y-4">
-                    <h2 className="
-                        flex items-center
-                        text-xs md:text-sm 
-                        text-slate-200 uppercase tracking-widest
-                    ">
-                        <Icon
-                            icon="mdi:account-tie"
-                            className="text-lg md:text-2xl mr-3 text-cyan-400"
-                        />
-                        Coach
-                    </h2>
+                <ModalSection
+                    title="Entrenador (Coach)"
+                    icon="mdi:account-tie"
+                >
                     <input
                         type="text"
                         value={coach}
                         onChange={(e) => setForm(prev => ({ ...prev, coach: e.target.value }))}
-                        placeholder="Enter coach name"
+                        placeholder="Nombre del entrenador"
                         className="
                             w-full
                             px-4 py-3
@@ -178,100 +157,95 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                             transition-colors
                         "
                     />
-                </div>
+                </ModalSection>
 
                 {/* Logo URL Field */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="
-                            flex items-center
-                            text-xs md:text-sm 
-                            text-slate-200 uppercase tracking-widest
-                        ">
-                            <Icon
-                                icon="mdi:image"
-                                className="text-lg md:text-2xl mr-3 text-fuchsia-500"
-                            />
-                            Team Logo
-                        </h2>
-                        {useCustomLogo ? (
-                            <button
-                                onClick={handleRestoreDefault}
-                                className="
-                                    text-xs text-fuchsia-400 hover:text-fuchsia-300
-                                    uppercase tracking-wider font-semibold
-                                    flex items-center gap-1
-                                    transition-colors
-                                "
-                            >
-                                <Icon icon="mdi:restore" className="text-base" />
-                                Restore Default
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setForm(prev => ({ ...prev, useCustomLogo: true }))}
-                                className="
-                                    text-xs text-cyan-400 hover:text-cyan-300
-                                    uppercase tracking-wider font-semibold
-                                    flex items-center gap-1
-                                    transition-colors
-                                "
-                            >
-                                <Icon icon="mdi:pencil" className="text-base" />
-                                Use Custom URL
-                            </button>
-                        )}
-                    </div>
-
-                    {useCustomLogo ? (
-                        <input
-                            type="text"
-                            value={logoUrl}
-                            onChange={(e) => setForm(prev => ({ ...prev, logoUrl: e.target.value }))}
-                            placeholder="https://example.com/logo.png"
-                            className="
-                                w-full
-                                px-4 py-3
-                                bg-slate-900/50
-                                border border-slate-700
-                                rounded-tr-xl rounded-bl-xl
-                                beveled-bl-tr
-                                text-slate-200
-                                placeholder:text-slate-600
-                                focus:outline-none
-                                focus:border-fuchsia-500
-                                transition-colors
-                            "
-                        />
-                    ) : (
-                        <div className="
-                            w-full px-4 py-3
-                            bg-slate-900/30
-                            border border-slate-800
-                            rounded-tr-xl rounded-bl-xl
-                            text-slate-500 italic text-sm
-                        ">
-                            Using default logo
+                <ModalSection
+                    title="Logo del Equipo"
+                    icon="mdi:image"
+                    iconColor="text-fuchsia-500"
+                >
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-end">
+                            {useCustomLogo ? (
+                                <button
+                                    onClick={handleRestoreDefault}
+                                    className="
+                                        text-xs text-fuchsia-400 hover:text-fuchsia-300
+                                        uppercase tracking-wider font-semibold
+                                        flex items-center gap-1
+                                        transition-colors
+                                    "
+                                >
+                                    <Icon icon="mdi:restore" className="text-base" />
+                                    Restaurar por Defecto
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setForm(prev => ({ ...prev, useCustomLogo: true }))}
+                                    className="
+                                        text-xs text-cyan-400 hover:text-cyan-300
+                                        uppercase tracking-wider font-semibold
+                                        flex items-center gap-1
+                                        transition-colors
+                                    "
+                                >
+                                    <Icon icon="mdi:pencil" className="text-base" />
+                                    Usar URL Personalizada
+                                </button>
+                            )}
                         </div>
-                    )}
 
-                    {/* Image Preview */}
-                    <div className="mt-4">
-                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">
-                            Preview
-                        </p>
-                        <img
-                            src={useCustomLogo && logoUrl ? logoUrl : SHIELD}
-                            alt="Preview"
-                            className="w-24 h-24 object-contain rounded-lg"
-                        />
+                        {useCustomLogo ? (
+                            <input
+                                type="text"
+                                value={logoUrl}
+                                onChange={(e) => setForm(prev => ({ ...prev, logoUrl: e.target.value }))}
+                                placeholder="https://ejemplo.com/logo.png"
+                                className="
+                                    w-full
+                                    px-4 py-3
+                                    bg-slate-900/50
+                                    border border-slate-700
+                                    rounded-tr-xl rounded-bl-xl
+                                    beveled-bl-tr
+                                    text-slate-200
+                                    placeholder:text-slate-600
+                                    focus:outline-none
+                                    focus:border-fuchsia-500
+                                    transition-colors
+                                "
+                            />
+                        ) : (
+                            <div className="
+                                w-full px-4 py-3
+                                bg-slate-900/30
+                                border border-slate-800
+                                rounded-tr-xl rounded-bl-xl
+                                text-slate-500 italic text-sm
+                            ">
+                                Usando logo por defecto
+                            </div>
+                        )}
+
+                        {/* Image Preview */}
+                        <div className="mt-4">
+                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">
+                                Vista Previa
+                            </p>
+                            <img
+                                src={useCustomLogo && logoUrl ? logoUrl : SHIELD}
+                                alt="Vista Previa"
+                                className="w-24 h-24 object-contain rounded-lg"
+                            />
+                        </div>
                     </div>
-                </div>
+                </ModalSection>
 
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={!name.trim() || !acronym.trim() || updateLoading}
+                    disabled={!name.trim() || updateLoading}
                     className={`
                         w-full py-3 md:py-4
                         text-lg font-bold uppercase 
@@ -284,8 +258,8 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                         flex items-center justify-center gap-2
                     `}
                 >
-                    {updateLoading && <Icon icon="mdi:loading" className="animate-spin text-xl" />}
-                    {updateLoading ? 'Saving...' : 'Save Changes'}
+                    {updateLoading && <Icon icon="line-md:loading-twotone-loop" className="text-xl" />}
+                    {updateLoading ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
             </div>
         </ModalLayout>

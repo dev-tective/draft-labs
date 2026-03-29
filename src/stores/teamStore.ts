@@ -1,208 +1,271 @@
+
 import { supabase } from "@/supabaseClient";
 import { AlertType, useAlertStore } from "@/stores/alertStore";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { create } from "zustand";
-import { Player } from "./playerStore";
+import { Tag } from "./tagStore";
+
+export interface Player {
+    id: number;
+    nickname: string;
+    team_id: number;
+    room_id: string;
+    profile_url?: string | null;
+    lane?: Tag;
+    is_active: boolean;
+    order: number;
+    created_at: string;
+}
 
 export interface Team {
-    id: string;
+    id: number;
     name: string;
-    acronym: string;
+    acronym?: string;
     logo_url?: string;
     coach?: string | null;
     created_at: string;
-    match_id: string;
+    room_id: string;
+    players: Player[];
 }
 
 interface TeamState {
     teams: Team[];
     channel: RealtimeChannel | null;
     loading: boolean;
-    updateLoading: boolean;
-
-    createTeam: (params: Partial<Team>, players?: Partial<Player>[]) => Promise<void>;
-    updateTeam: (params: Partial<Team>) => Promise<void>;
-    deleteTeam: (teamId: string) => void;
-    subscribeToMatch: (matchId: string) => void;
+    loadingTeamIds: Set<number>;   // 👈 granular
+    subscribeToRoom: (room_id: string) => void;
     closeChannel: () => void;
     unsubscribe: () => void;
+    createPlayer: (player: Partial<Player>) => Promise<void>;
+    updatePlayer: (player: Partial<Player>) => Promise<void>;
+    deletePlayer: (playerId: number, teamId: number) => void;  // 👈 teamId necesario
 }
 
-export const useTeamStore = create<TeamState>((set, get) => ({
-    teams: [],
-    channel: null,
-    loading: false,
-    updateLoading: false,
+export const useTeamStore = create<TeamState>((set, get) => {
 
-    createTeam: async (params: Partial<Team>, players?: Partial<Player>[]) => {
-        const { error } = await supabase.rpc('create_team_with_players', {
-            p_match_id: params.match_id,
-            p_name: params.name,
-            p_acronym: params.acronym,
-            p_logo_url: params.logo_url,
-            p_coach: params.coach,
-            p_players: players || [],
+    // Helper interno — no expuesto en el estado
+    const setTeamLoading = (teamId: number, val: boolean) => {
+        set((s) => {
+            const ids = new Set(s.loadingTeamIds);
+            val ? ids.add(teamId) : ids.delete(teamId);
+            return { loadingTeamIds: ids };
         });
+    };
 
-        if (error) {
-            useAlertStore.getState().addAlert({
-                message: error.message,
-                type: AlertType.ERROR,
-            });
-            return;
-        }
+    return {
+        teams: [],
+        channel: null,
+        loading: false,
+        loadingTeamIds: new Set(),
 
-        useAlertStore.getState().addAlert({
-            message: `Team "${params.name}" created`,
-            type: AlertType.SUCCESS,
-        });
-    },
+        createPlayer: async (player: Partial<Player>) => {
+            const alert = useAlertStore.getState().addAlert;
+            setTeamLoading(player.team_id!, true);
 
-    updateTeam: async (params: Partial<Team>) => {
-        set({ updateLoading: true });
-        const { id, match_id: _match_id, ...updateData } = params;
-
-        const { error } = await supabase
-            .from('teams')
-            .update(updateData)
-            .eq('id', id);
-
-        if (error) {
-            useAlertStore.getState().addAlert({
-                message: error.message,
-                type: AlertType.ERROR,
-            });
-        } else {
-            useAlertStore.getState().addAlert({
-                message: `Team "${updateData.name}" updated`,
-                type: AlertType.SUCCESS,
-            });
-        }
-
-        set({ updateLoading: false });
-    },
-
-    deleteTeam: (teamId: string) => {
-        useAlertStore.getState().addAlert({
-            message: 'Are you sure you want to delete this team?',
-            type: AlertType.WARNING,
-            duration: 10000,
-            handleAction: async () => {
+            try {
                 const { error } = await supabase
-                    .from('teams')
-                    .delete()
-                    .eq('id', teamId);
+                    .from('players')
+                    .insert({
+                        nickname: player.nickname,
+                        team_id: player.team_id,
+                        room_id: player.room_id,
+                        profile_url: player.profile_url ?? null,
+                        lane: player.lane ?? null,
+                        order: player.order ?? null,
+                        is_active: player.is_active ?? false,
+                    })
+                    .select('*')
+                    .single();
 
-                if (error) {
-                    useAlertStore.getState().addAlert({
-                        message: error.message,
-                        type: AlertType.ERROR,
-                    });
-                }
+                if (error) throw error;
 
-                // Eliminar del estado local inmediatamente.
-                // El evento DELETE de Realtime con filtros no es confiable
-                // sin REPLICA IDENTITY FULL en la tabla.
-                set((state) => ({
-                    teams: state.teams.filter((t) => t.id !== teamId),
-                }));
+                alert({ message: "Jugador creado correctamente", type: AlertType.SUCCESS });
+            } catch (error: any) {
+                alert({ message: error.message, type: AlertType.ERROR });
+            } finally {
+                setTeamLoading(player.team_id!, false);
+            }
+        },
 
-                useAlertStore.getState().addAlert({
-                    message: 'Team deleted successfully',
-                    type: AlertType.SUCCESS,
-                });
-            },
-        });
-    },
+        updatePlayer: async (player: Partial<Player>) => {
+            const alert = useAlertStore.getState().addAlert;
+            setTeamLoading(player.team_id!, true);
 
-    subscribeToMatch: (matchId: string) => {
-        // Unsubscribe from previous channel if exists
-        const currentChannel = get().channel;
-        if (currentChannel) {
-            currentChannel.unsubscribe();
-        }
+            try {
+                const {
+                    id,
+                    room_id: _room_id,
+                    team_id: _team_id,
+                    created_at: _created_at,
+                    ...updateData
+                } = player;
 
-        set({ loading: true, teams: [] });
+                const { error } = await supabase
+                    .from('players')
+                    .update(updateData)
+                    .eq('id', id);
 
-        // Create a new realtime channel filtered by match_id
-        const channel = supabase
-            .channel(`teams:match_id=eq.${matchId}`)
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "teams",
-                    filter: `match_id=eq.${matchId}`,
-                },
-                (payload) => {
-                    console.log("[TeamStore] Realtime event:", payload);
+                if (error) throw error;
 
-                    if (payload.eventType === "INSERT") {
-                        const team = payload.new as Team;
-                        set((state) => ({
-                            teams: [...state.teams, team],
-                        }));
+                alert({ message: "Jugador actualizado correctamente", type: AlertType.SUCCESS });
+            } catch (error: any) {
+                alert({ message: error.message, type: AlertType.ERROR });
+            } finally {
+                setTeamLoading(player.team_id!, false);
+            }
+        },
+
+        // 👇 teamId ahora requerido para poder liberar el loading correcto
+        deletePlayer: (playerId: number, teamId: number) => {
+            useAlertStore.getState().addAlert({
+                message: '¿Estás seguro de que quieres eliminar este jugador?',
+                type: AlertType.WARNING,
+                handleAction: async () => {
+                    setTeamLoading(teamId, true);
+
+                    try {
+                        const { error } = await supabase
+                            .from('players')
+                            .delete()
+                            .eq('id', playerId);
+
+                        if (error) throw error;
+
                         useAlertStore.getState().addAlert({
-                            message: `Team "${team.name}" was added`,
-                            type: AlertType.INFO,
+                            message: 'El jugador fue eliminado correctamente',
+                            type: AlertType.SUCCESS,
                         });
-                    } else if (payload.eventType === "UPDATE") {
-                        const team = payload.new as Team;
-                        set((state) => ({
-                            teams: state.teams.map((t) =>
-                                t.id === team.id ? team : t
-                            ),
-                        }));
+                    } catch (error: any) {
                         useAlertStore.getState().addAlert({
-                            message: `Team "${team.name}" was updated`,
-                            type: AlertType.INFO,
+                            message: error.message,
+                            type: AlertType.ERROR,
                         });
-                    } else if (payload.eventType === "DELETE") {
-                        const team = payload.old as Team;
-                        set((state) => ({
-                            teams: state.teams.filter((t) => t.id !== team.id),
-                        }));
-                        useAlertStore.getState().addAlert({
-                            message: `A team was removed`,
-                            type: AlertType.INFO,
-                        });
+                    } finally {
+                        setTeamLoading(teamId, false);
                     }
-                }
-            )
-            .subscribe();
-
-        set({ channel });
-
-        // Load initial teams for this match
-        supabase
-            .from("teams")
-            .select("*")
-            .eq("match_id", matchId)
-            .order("created_at", { ascending: true })
-            .then(({ data, error }) => {
-                if (error) {
-                    console.error("[TeamStore] Error loading teams:", error);
-                } else {
-                    set({ teams: (data as Team[]) ?? [] });
-                }
-                set({ loading: false });
+                },
             });
-    },
+        },
 
-    // Cierra el canal sin limpiar teams — para cleanup de useEffect
-    closeChannel: () => {
-        const channel = get().channel;
-        if (channel) {
-            channel.unsubscribe();
-            set({ channel: null });
-        }
-    },
+        subscribeToRoom: (room_id: string) => {
+            const currentChannel = get().channel;
+            if (currentChannel) currentChannel.unsubscribe();
 
-    // Reset completo — para usar al desmontar la página
-    unsubscribe: () => {
-        const channel = get().channel;
-        if (channel) channel.unsubscribe();
-        set({ channel: null, teams: [] });
-    },
-}));
+            set({ loading: true, teams: [] });
+
+            const alert = (message: string, type: AlertType) =>
+                useAlertStore.getState().addAlert({ message, type });
+
+            const channel = supabase
+                .channel(`room:${room_id}`)
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "*",
+                        schema: "public",
+                        table: "teams",
+                        filter: `room_id=eq.${room_id}`,
+                    },
+                    (payload) => {
+                        if (payload.eventType === "INSERT") {
+                            const team = { ...payload.new as Team, players: [] };
+                            set((state) => ({ teams: [...state.teams, team] }));
+                            alert(`El equipo "${team.name}" fue añadido`, AlertType.INFO);
+
+                        } else if (payload.eventType === "UPDATE") {
+                            const updated = payload.new as Team;
+                            set((state) => ({
+                                teams: state.teams.map((t) =>
+                                    t.id === updated.id ? { ...updated, ...t } : t
+                                ),
+                            }));
+                            alert(`El equipo "${updated.name}" fue actualizado`, AlertType.INFO);
+
+                        } else if (payload.eventType === "DELETE") {
+                            const deleted = payload.old as Team;
+                            set((state) => ({
+                                teams: state.teams.filter((t) => t.id !== deleted.id),
+                            }));
+                            alert(`Un equipo fue eliminado`, AlertType.INFO);
+                        }
+                    }
+                )
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "*",
+                        schema: "public",
+                        table: "players",
+                        filter: `room_id=eq.${room_id}`,
+                    },
+                    (payload) => {
+                        if (payload.eventType === "INSERT") {
+                            const player = payload.new as Player;
+                            set((state) => ({
+                                teams: state.teams.map((t) =>
+                                    t.id === player.team_id
+                                        ? { ...t, players: [...t.players, player] }
+                                        : t
+                                ),
+                            }));
+
+                        } else if (payload.eventType === "UPDATE") {
+                            const player = payload.new as Player;
+                            set((state) => ({
+                                teams: state.teams.map((t) =>
+                                    t.id === player.team_id
+                                        ? {
+                                            ...t,
+                                            players: t.players.map((p) =>
+                                                p.id === player.id ? player : p
+                                            ),
+                                        }
+                                        : t
+                                ),
+                            }));
+                        } else if (payload.eventType === "DELETE") {
+                            const player = payload.old as Player;
+                            set((state) => ({
+                                teams: state.teams.map((t) =>
+                                    t.id === player.team_id
+                                        ? {
+                                            ...t,
+                                            players: t.players.filter((p) => p.id !== player.id),
+                                        }
+                                        : t
+                                ),
+                            }));
+                        }
+                    }
+                )
+                .subscribe();
+
+            set({ channel });
+
+            supabase
+                .from("teams")
+                .select(`*, players(*)`)
+                .eq("room_id", room_id)
+                .order("created_at", { ascending: true })
+                .then(({ data, error }) => {
+                    if (error) console.error("[TeamStore] Error cargando equipos:", error);
+                    else set({ teams: (data as Team[]) ?? [] });
+                    set({ loading: false });
+                });
+        },
+
+        closeChannel: () => {
+            const channel = get().channel;
+            if (channel) {
+                channel.unsubscribe();
+                set({ channel: null });
+            }
+        },
+
+        unsubscribe: () => {
+            const channel = get().channel;
+            if (channel) channel.unsubscribe();
+            set({ channel: null, teams: [] });
+        },
+    };
+});

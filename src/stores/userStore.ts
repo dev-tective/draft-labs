@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../supabaseClient';
+import { AlertType, useAlertStore } from './alertStore';
 
 export interface User {
-    id: number;
+    id: string;
     username: string;
 }
 
@@ -19,13 +20,21 @@ export const useUserStore = create<UserState>()(
             user: null,
 
             createUser: async (username: string) => {
+                const addAlert = useAlertStore.getState().addAlert;
+
                 const { data, error } = await supabase
                     .from('users')
                     .insert([{ username }])
                     .select('id, username')
                     .single();
 
-                if (error) throw error;
+                if (error) {
+                    addAlert({
+                        message: error.message || "No se pudo crear el usuario",
+                        type: AlertType.ERROR,
+                    });
+                    throw error;
+                }
 
                 set({ user: data as User });
             },
@@ -34,6 +43,8 @@ export const useUserStore = create<UserState>()(
                 const user = get().user;
                 if (!user) return;
 
+                const addAlert = useAlertStore.getState().addAlert;
+
                 const { data, error } = await supabase
                     .from('users')
                     .update({ username })
@@ -41,7 +52,13 @@ export const useUserStore = create<UserState>()(
                     .select('id, username')
                     .single();
 
-                if (error) throw error;
+                if (error) {
+                    addAlert({
+                        message: error.message || "No se pudo actualizar el usuario",
+                        type: AlertType.ERROR,
+                    });
+                    throw error;
+                }
 
                 set({ user: { ...get().user!, ...data } });
             },

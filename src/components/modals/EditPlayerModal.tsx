@@ -1,54 +1,67 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "../../layout/ModalLayout";
-import { Player, usePlayerStore } from "@/stores/playerStore";
-import { useMatchStore } from "@/stores/matchStore";
+import { Player, useTeamStore } from "@/stores/teamStore";
 import { useTagStore } from "@/stores/tagStore";
-import { Option } from "@/components/Option";
+import { Option } from "@/components/shared/Option";
 import DEFAULT_IMAGE from "@/assets/ui/silueta.png";
+
+import { ModalSection } from "../shared/ModalSection";
 
 interface EditPlayerModalProps {
     player: Player;
     createMode?: boolean;
-    teamId: string;
 }
 
-export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ player, createMode, teamId }, ref) => {
-    const isDefaultInitial = !player.image_url || player.image_url === DEFAULT_IMAGE;
+export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ player, createMode }, ref) => {
+    const isDefaultInitial = !player.profile_url || player.profile_url === DEFAULT_IMAGE;
 
     const [formData, setFormData] = useState({
         nickname: player.nickname,
-        imageUrl: isDefaultInitial ? '' : player.image_url,
+        imageUrl: isDefaultInitial ? '' : player.profile_url,
         lane: player.lane,
         useCustomImage: !isDefaultInitial
     });
 
-    const { currentMatch } = useMatchStore();
-    const { createPlayer, updatePlayer, updateLoading } = usePlayerStore();
+    const { createPlayer, updatePlayer, loadingTeamIds } = useTeamStore();
+    const updateTeamLoading = loadingTeamIds.has(player.team_id);
+
 
     const { lanes, findLane } = useTagStore();
+
+    const isLoading = updateTeamLoading;
 
     const handleSubmit = async () => {
         if (!formData.nickname.trim()) return;
 
         const commonData = {
             nickname: formData.nickname.trim(),
-            image_url: (formData.useCustomImage && formData.imageUrl?.trim()) ? formData.imageUrl.trim() : null,
-            lane: findLane(formData.lane?.id ?? 0),
+            profile_url: (formData.useCustomImage && formData.imageUrl?.trim()) ? formData.imageUrl.trim() : null,
+            lane: findLane(formData.lane?.id ?? 0) ?? undefined,
         };
 
         if (createMode) {
             await createPlayer({
                 ...commonData,
-                team_id: teamId,
-                match_id: currentMatch?.id ?? '',
+                team_id: player.team_id,
+                room_id: player.room_id,
             });
         } else {
-            await updatePlayer({ ...commonData, id: player.id });
+            await updatePlayer({ 
+                ...commonData, 
+                id: player.id, 
+                team_id: player.team_id 
+            });
         }
 
         if (ref && typeof ref !== 'function' && ref.current) {
             ref.current.close();
+            setFormData({
+                nickname: player.nickname,
+                imageUrl: isDefaultInitial ? '' : player.profile_url,
+                lane: player.lane,
+                useCustomImage: !isDefaultInitial
+            });
         }
     };
 
@@ -70,15 +83,15 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-xl md:text-2xl text-slate-200 uppercase tracking-widest font-bold italic">
-                            {createMode ? 'Create Player' : 'Edit Player'}
+                            {createMode ? 'Crear Jugador' : 'Editar Jugador'}
                         </h1>
                         <p className="text-cyan-500 text-xs md:text-sm tracking-wider uppercase">
-                            {createMode ? 'Add new player to team' : 'Modify player information'}
+                            {createMode ? 'Añade un nuevo jugador al equipo' : 'Modifica la información del jugador'}
                         </p>
                     </div>
                     <button
                         onClick={() => ref && typeof ref !== 'function' && ref.current?.close()}
-                        disabled={updateLoading}
+                        disabled={isLoading}
                         className="text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                         <Icon icon="mdi:close" className="text-3xl" />
@@ -86,23 +99,15 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                 </div>
 
                 {/* Nickname Field */}
-                <div className="space-y-4">
-                    <h2 className="
-                        flex items-center
-                        text-xs md:text-sm 
-                        text-slate-200 uppercase tracking-widest
-                    ">
-                        <Icon
-                            icon="mdi:account"
-                            className="text-lg md:text-2xl mr-3 text-cyan-400"
-                        />
-                        Nickname
-                    </h2>
+                <ModalSection
+                    title="Nickname"
+                    icon="mdi:account"
+                >
                     <input
                         type="text"
                         value={formData.nickname}
                         onChange={(e) => setFormData(prev => ({ ...prev, nickname: e.target.value }))}
-                        placeholder="Enter player nickname"
+                        placeholder="Introduce el nickname del jugador"
                         className="
                             w-full
                             px-4 py-3
@@ -117,21 +122,13 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                             transition-colors
                         "
                     />
-                </div>
+                </ModalSection>
 
-                {/* Nickname Field */}
-                <div className="space-y-4">
-                    <h2 className="
-                        flex items-center
-                        text-xs md:text-sm 
-                        text-slate-200 uppercase tracking-widest
-                    ">
-                        <Icon
-                            icon="game-icons:battle-gear"
-                            className="text-lg md:text-2xl mr-3 text-cyan-400"
-                        />
-                        Lane
-                    </h2>
+                {/* Lane Field */}
+                <ModalSection
+                    title="Línea / Rol"
+                    icon="game-icons:battle-gear"
+                >
                     <div className="grid grid-cols-3 gap-2">
                         {lanes.map((lane) => (
                             <Option
@@ -145,108 +142,102 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                             />
                         ))}
                     </div>
-                </div>
+                </ModalSection>
 
                 {/* Image URL Field */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="
-                            flex items-center
-                            text-xs md:text-sm 
-                            text-slate-200 uppercase tracking-widest
-                        ">
-                            <Icon
-                                icon="mdi:image"
-                                className="text-lg md:text-2xl mr-3 text-fuchsia-500"
-                            />
-                            Image
-                        </h2>
+                <ModalSection
+                    title="Imagen del Jugador"
+                    icon="mdi:image"
+                    iconColor="text-fuchsia-500"
+                >
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-end">
+                            {formData.useCustomImage ? (
+                                <button
+                                    onClick={handleRestoreDefault}
+                                    className="
+                                        text-xs text-fuchsia-400 hover:text-fuchsia-300
+                                        uppercase tracking-wider font-semibold
+                                        flex items-center gap-1
+                                        transition-colors
+                                    "
+                                >
+                                    <Icon icon="mdi:restore" className="text-base" />
+                                    Restaurar por Defecto
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setFormData(prev => ({ ...prev, useCustomImage: true }))}
+                                    className="
+                                        text-xs text-cyan-400 hover:text-cyan-300
+                                        uppercase tracking-wider font-semibold
+                                        flex items-center gap-1
+                                        transition-colors
+                                    "
+                                >
+                                    <Icon icon="mdi:pencil" className="text-base" />
+                                    Usar URL Personalizada
+                                </button>
+                            )}
+                        </div>
+
                         {formData.useCustomImage ? (
-                            <button
-                                onClick={handleRestoreDefault}
+                            <input
+                                type="text"
+                                value={formData.imageUrl ?? ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                                placeholder="https://ejemplo.com/imagen.jpg"
                                 className="
-                                    text-xs text-fuchsia-400 hover:text-fuchsia-300
-                                    uppercase tracking-wider font-semibold
-                                    flex items-center gap-1
+                                    w-full
+                                    px-4 py-3
+                                    bg-slate-900/50
+                                    border border-slate-700
+                                    rounded-tr-xl rounded-bl-xl
+                                    beveled-bl-tr
+                                    text-slate-200
+                                    placeholder:text-slate-600
+                                    focus:outline-none
+                                    focus:border-fuchsia-500
                                     transition-colors
                                 "
-                            >
-                                <Icon icon="mdi:restore" className="text-base" />
-                                Restore Default
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setFormData(prev => ({ ...prev, useCustomImage: true }))}
-                                className="
-                                    text-xs text-cyan-400 hover:text-cyan-300
-                                    uppercase tracking-wider font-semibold
-                                    flex items-center gap-1
-                                    transition-colors
-                                "
-                            >
-                                <Icon icon="mdi:pencil" className="text-base" />
-                                Use Custom URL
-                            </button>
-                        )}
-                    </div>
-
-                    {formData.useCustomImage ? (
-                        <input
-                            type="text"
-                            value={formData.imageUrl ?? ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                            placeholder="https://example.com/image.jpg"
-                            className="
-                                w-full
-                                px-4 py-3
-                                bg-slate-900/50
-                                border border-slate-700
-                                rounded-tr-xl rounded-bl-xl
-                                beveled-bl-tr
-                                text-slate-200
-                                placeholder:text-slate-600
-                                focus:outline-none
-                                focus:border-fuchsia-500
-                                transition-colors
-                            "
-                        />
-                    ) : (
-                        <div className="
-                            w-full px-4 py-3
-                            bg-slate-900/30
-                            border border-slate-800
-                            rounded-tr-xl rounded-bl-xl
-                            text-slate-500 italic text-sm
-                        ">
-                            Using default image
-                        </div>
-                    )}
-
-                    {/* Image Preview */}
-                    <div className="mt-4">
-                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">
-                            Preview
-                        </p>
-                        <div className="w-24 h-24 overflow-hidden rounded-lg border border-slate-700 bg-slate-800">
-                            <img
-                                src={formData.useCustomImage && formData.imageUrl ? formData.imageUrl : DEFAULT_IMAGE}
-                                alt="Preview"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    // Fallback to default if custom fails, or keep visible if default fails (unlikely)
-                                    if (e.currentTarget.src !== DEFAULT_IMAGE) {
-                                        e.currentTarget.src = DEFAULT_IMAGE;
-                                    }
-                                }}
                             />
+                        ) : (
+                            <div className="
+                                w-full px-4 py-3
+                                bg-slate-900/30
+                                border border-slate-800
+                                rounded-tr-xl rounded-bl-xl
+                                text-slate-500 italic text-sm
+                            ">
+                                Usando imagen por defecto
+                            </div>
+                        )}
+
+                        {/* Image Preview */}
+                        <div className="mt-4">
+                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">
+                                Vista Previa
+                            </p>
+                            <div className="w-24 h-24 overflow-hidden rounded-lg border border-slate-700 bg-slate-800">
+                                <img
+                                    src={formData.useCustomImage && formData.imageUrl ? formData.imageUrl : DEFAULT_IMAGE}
+                                    alt="Vista Previa"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        if (e.currentTarget.src !== DEFAULT_IMAGE) {
+                                            e.currentTarget.src = DEFAULT_IMAGE;
+                                        }
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
+                </ModalSection>
 
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmit}
-                    disabled={!formData.nickname.trim() || updateLoading}
+                    disabled={!formData.nickname.trim() || isLoading}
                     className={`
                         w-full py-3 md:py-4
                         text-lg font-bold uppercase 
@@ -259,13 +250,13 @@ export const EditPlayerModal = forwardRef<ModalRef, EditPlayerModalProps>(({ pla
                         flex items-center justify-center gap-2
                     `}
                 >
-                    {updateLoading ? (
+                    {isLoading ? (
                         <>
-                            <Icon icon="mdi:loading" className="animate-spin text-xl" />
-                            {createMode ? 'Creating...' : 'Saving...'}
+                            <Icon icon="line-md:loading-twotone-loop" className="text-xl" />
+                            {createMode ? 'Creando...' : 'Guardando...'}
                         </>
                     ) : (
-                        createMode ? 'Create Player' : 'Save Changes'
+                        createMode ? 'Crear Jugador' : 'Guardar Cambios'
                     )}
                 </button>
             </div>

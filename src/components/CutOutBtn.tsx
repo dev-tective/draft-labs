@@ -34,7 +34,7 @@ export const CutOutBtn = ({ icon, text, disabled, onClick, className }: Props) =
                 <Icon icon={icon} />
             )}
             {text && (
-                <span className="text-sm md:text-base text-slate-200 uppercase tracking-widest">
+                <span className="text-sm md:text-base uppercase tracking-widest">
                     {text}
                 </span>
             )}
