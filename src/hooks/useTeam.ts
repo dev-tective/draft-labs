@@ -3,7 +3,6 @@ import { AlertType, useAlertStore } from "@/stores/alertStore";
 import { Team, Player } from "@/stores/teamStore";
 import { useState } from "react";
 
-
 const alert = (message: string, type: AlertType) =>
     useAlertStore.getState().addAlert({ message, type });
 
@@ -48,7 +47,13 @@ export const useUpdateTeam = () => {
 
     const updateTeam = async (params: Partial<Team>) => {
         setLoading(true);
-        const { id, room_id: _room_id, created_at: _created_at, players: _players, ...updateData } = params;
+        const { 
+            id, 
+            room_id: _room_id, 
+            created_at: _created_at, 
+            players: _players, 
+            ...updateData 
+        } = params;
 
         try {
             const { error } = await supabase

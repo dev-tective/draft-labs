@@ -25,6 +25,7 @@ export const TeamContainer = ({ team, reverse = false }: Props) => {
 
     return (
         <div className={`
+            overflow-hidden
             relative flex-1 flex flex-col 
             w-full p-8 gap-8 
             border bg-slate-900/30
@@ -35,7 +36,7 @@ export const TeamContainer = ({ team, reverse = false }: Props) => {
         `}>
             {isLoading && (
                 <div className={`
-                    absolute inset-0 z-10 
+                    absolute inset-0 z-1 
                     flex items-center justify-center 
                     bg-slate-900/60 backdrop-blur-md
                     transition-all duration-500
@@ -117,7 +118,6 @@ export const TeamContainer = ({ team, reverse = false }: Props) => {
                         room_id: team.room_id,
                         created_at: '',
                         is_active: false,
-                        order: 0,
                     }}
                     createMode
                 />
@@ -264,7 +264,7 @@ const TeamActions = ({ team, reverse }: { team: Team, reverse: boolean }) => {
                     <span className="mr-2 text-slate-400">
                         Coach:
                     </span>
-                    {coach || 'No coach'}
+                    {coach ?? 'No coach'}
                 </h2>
             </div>
         </div>

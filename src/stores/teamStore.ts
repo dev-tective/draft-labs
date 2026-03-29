@@ -1,4 +1,3 @@
-
 import { supabase } from "@/supabaseClient";
 import { AlertType, useAlertStore } from "@/stores/alertStore";
 import { RealtimeChannel } from "@supabase/supabase-js";
@@ -13,14 +12,13 @@ export interface Player {
     profile_url?: string | null;
     lane?: Tag;
     is_active: boolean;
-    order: number;
     created_at: string;
 }
 
 export interface Team {
     id: number;
     name: string;
-    acronym?: string;
+    acronym?: string | null;
     logo_url?: string;
     coach?: string | null;
     created_at: string;
@@ -71,7 +69,6 @@ export const useTeamStore = create<TeamState>((set, get) => {
                         room_id: player.room_id,
                         profile_url: player.profile_url ?? null,
                         lane: player.lane ?? null,
-                        order: player.order ?? null,
                         is_active: player.is_active ?? false,
                     })
                     .select('*')
@@ -115,7 +112,7 @@ export const useTeamStore = create<TeamState>((set, get) => {
             }
         },
 
-        // 👇 teamId ahora requerido para poder liberar el loading correcto
+        // teamId ahora requerido para poder liberar el loading correcto
         deletePlayer: (playerId: number, teamId: number) => {
             useAlertStore.getState().addAlert({
                 message: '¿Estás seguro de que quieres eliminar este jugador?',
@@ -166,6 +163,7 @@ export const useTeamStore = create<TeamState>((set, get) => {
                         table: "teams",
                         filter: `room_id=eq.${room_id}`,
                     },
+
                     (payload) => {
                         if (payload.eventType === "INSERT") {
                             const team = { ...payload.new as Team, players: [] };
@@ -176,7 +174,7 @@ export const useTeamStore = create<TeamState>((set, get) => {
                             const updated = payload.new as Team;
                             set((state) => ({
                                 teams: state.teams.map((t) =>
-                                    t.id === updated.id ? { ...updated, ...t } : t
+                                    t.id === updated.id ? { ...t, ...updated } : t
                                 ),
                             }));
                             alert(`El equipo "${updated.name}" fue actualizado`, AlertType.INFO);

@@ -4,6 +4,8 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 import { Staff } from "@/staff/staff.types";
 import { Room } from "@/room/room.types";
 import { AlertType, useAlertStore } from "@/stores/alertStore";
+import { useTagStore } from "@/stores/tagStore";
+import { useHeroesStore } from "@/stores/heroesStore";
 
 const ROOM_INITIAL_SELECT = `
     *,
@@ -117,6 +119,10 @@ export const useRoomStore = create<RoomState>((set, get) => ({
                 activeRoom: data[0].rooms as Room,
             });
         }
+
+        useHeroesStore.getState().fetchHeroes(get().activeRoom?.game!);
+        useTagStore.getState().getMaps(get().activeRoom?.game!);
+        useTagStore.getState().getLanes(get().activeRoom?.game!);
 
         set({ roomStaffLoading: false });
     },

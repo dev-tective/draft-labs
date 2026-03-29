@@ -12,7 +12,6 @@ export const PlayerRow = ({ player }: { player: Player }) => {
     const editPlayerModalRef = useRef<ModalRef>(null);
     const { updatePlayer, deletePlayer } = useTeamStore();
 
-
     const { ref, isDragging } = useDraggable({
         id,
         data: { player },

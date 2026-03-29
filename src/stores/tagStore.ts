@@ -1,11 +1,11 @@
 import { create } from "zustand";
-import { supabase } from "../supabaseClient";
-import { Game } from "./matchStore";
+import { supabaseCloud as supabase } from "../supabaseClient";
+import { RoomGame } from "@/room/room.types";
 
 export interface Tag {
     id: number;
     name: string;
-    game: Game;
+    game: RoomGame;
     image?: string;
     active?: boolean;
     created_at: string;
@@ -18,10 +18,10 @@ interface TagsStore {
     loading: boolean;
     error: string | null;
 
-    getLanes: (game: Game) => Promise<void>;
+    getLanes: (game: RoomGame) => Promise<void>;
     findLane: (id: number) => Tag | undefined;
 
-    getMaps: (game: Game) => Promise<void>;
+    getMaps: (game: RoomGame) => Promise<void>;
     findMap: (id: number) => Tag | undefined;
 }
 
@@ -32,7 +32,7 @@ export const useTagStore = create<TagsStore>((set, get) => ({
     loading: false,
     error: null,
 
-    getLanes: async (game: Game = Game.MLBB) => {
+    getLanes: async (game: RoomGame = RoomGame.MLBB) => {
         set({
             loading: true,
             error: null
@@ -46,6 +46,8 @@ export const useTagStore = create<TagsStore>((set, get) => ({
                 .eq('game', game);
 
             if (error) throw error;
+
+            console.log(data);
 
             set({
                 lanes: data || [],
@@ -67,7 +69,7 @@ export const useTagStore = create<TagsStore>((set, get) => ({
         return get().lanes.find((lane) => lane.id === id);
     },
 
-    getMaps: async (game: Game = Game.MLBB) => {
+    getMaps: async (game: RoomGame = RoomGame.MLBB) => {
         set({
             loading: true,
             error: null
@@ -80,6 +82,8 @@ export const useTagStore = create<TagsStore>((set, get) => ({
                 .eq('game', game);
 
             if (error) throw error;
+
+            console.log(data);
 
             set({
                 maps: data || [],

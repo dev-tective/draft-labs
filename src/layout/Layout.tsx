@@ -1,7 +1,11 @@
 import { Icon } from "@iconify/react";
 import { Link, useLocation } from "react-router-dom";
-import { useMatchStore } from "@/stores/matchStore";
 import { AlertContainer } from "@/layout/AlertContainer";
+import { useRoomStore } from "@/room/store/roomStore";
+import { useUserStore } from "@/stores/userStore";
+import { useEffect, useRef } from "react";
+import { ModalRef } from "./ModalLayout";
+import { UserModal } from "@/components/modals/UserModal";
 
 interface NavOptionProps {
     icon: string;
@@ -67,16 +71,27 @@ const NavOption = ({ icon, label, href = "#", locked = false }: NavOptionProps) 
 };
 
 const MENU_ITEMS = [
-    { icon: "gridicons:customize", label: "Customize", href: "/customize" },
+    { icon: "gridicons:customize", label: "Personalizar", href: "/customize" },
     { icon: "fluent:people-team-20-filled", label: "Sala", href: "/" },
-    { icon: "fluent:people-team-20-filled", label: "Partidos", href: "/partidos" },
-    { icon: "material-symbols-light:swords", label: "Juegos", href: "/juegos", requiresMatch: true },
-    { icon: "material-symbols:dashboard", label: "Draft", href: "/draft", requiresMatch: true },
+    { icon: "material-symbols-light:swords", label: "Encuentros", href: "/matches", requiresRoom: true },
 ];
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
-    const currentMatch = useMatchStore(state => state.currentMatch);
-    const hasActiveMatch = !!currentMatch?.id && currentMatch.start;
+    const activeRoom = useRoomStore(state => state.activeRoom);
+    const { user } = useUserStore();
+    const userModalRef = useRef<ModalRef>(null);
+
+    const handleOpenUserModal = () => {
+        userModalRef.current?.open();
+    };
+
+    // Abre el modal automáticamente si no hay usuario
+    useEffect(() => {
+        if (!user) {
+            userModalRef.current?.open();
+        }
+    }, [user]);
+
 
     return (
         <div className="
@@ -85,6 +100,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             bg-slate-950 scanline
         ">
             <AlertContainer />
+            <UserModal ref={userModalRef} />
 
             <aside className="
                 flex flex-col items-center
@@ -103,7 +119,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
                 <nav className="w-full flex md:flex-col">
                     {MENU_ITEMS.map((item) => {
-                        const isLocked = 'requiresMatch' in item && item.requiresMatch && !hasActiveMatch;
+                        const isLocked = 'requiresRoom' in item && item.requiresRoom && !activeRoom;
 
                         return (
                             <NavOption
@@ -115,30 +131,47 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                             />
                         );
                     })}
+                    <button
+                        onClick={handleOpenUserModal}
+                        className={`
+                            block md:hidden w-full gap-4 p-3 lg:p-6
+                            text-slate-500 hover:text-cyan-400 
+                            transition-all
+                        `}
+                    >
+                        <Icon
+                            icon="material-symbols:account-circle"
+                            className="text-3xl lg:text-4xl"
+                        />
+                    </button>
                 </nav>
-                <div className="hidden md:block lg:w-80 mt-auto p-6">
-                    <div className="
-                        flex items-center
-                        p-4 gap-3
-                        rounded border
-                        bg-slate-900/50 border-slate-800
-                    ">
+                <div className="hidden md:block lg:w-70 mt-auto p-6">
+                    <div
+                        onClick={handleOpenUserModal}
+                        className="
+                            flex items-center
+                            p-4 gap-3 cursor-pointer hover:border-cyan-400 transition-all
+                            rounded-bl-xl rounded-tr-xl 
+                            border beveled-bl-tr
+                            bg-slate-950/30 border-slate-700
+                        "
+                    >
                         <div className="
                             flex items-center justify-center
                             w-10 h-10
                             border rounded-full
                             bg-primary/20 border-primary/50
                         ">
-                            <span className="material-icons-outlined text-primary text-sm">
-                                hub
+                            <span className="material-icons-outlined text-primary text-lg">
+                                {user?.username[0].toUpperCase()}
                             </span>
                         </div>
                         <div className="hidden lg:block overflow-hidden">
-                            <p className="text-xs font-display text-white truncate">
-                                OPERATOR_72
+                            <p className="text-base font-display text-white truncate">
+                                {user?.username}
                             </p>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-tighter">
-                                System Online
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                                Cambiar nombre
                             </p>
                         </div>
                     </div>

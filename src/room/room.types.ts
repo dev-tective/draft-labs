@@ -1,6 +1,6 @@
 export enum RoomGame {
-    MLBB = 'mlbb',
-    LOL = 'lol',
+    MLBB = 'MLBB',
+    LOL = 'LOL',
 }
 
 export interface Room {

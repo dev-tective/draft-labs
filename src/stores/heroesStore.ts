@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { supabase } from '../supabaseClient';
-import { Game } from './matchStore';
+import { supabaseCloud as supabase } from '../supabaseClient';
+import { RoomGame } from '@/room/room.types';
 import { Tag } from './tagStore';
 
 // Interface para la tabla heroes - ahora con lanes y roles completos
@@ -9,7 +9,7 @@ export interface Hero {
     name: string;
     image_profile_url: string;
     image_slot_url: string;
-    game: Game;
+    game: RoomGame;
     lanes: Tag[];
     roles: Tag[];
 }
@@ -23,7 +23,7 @@ interface HeroesState {
     isLoading: boolean;
     error: string | null;
 
-    fetchHeroes: (game?: Game) => Promise<void>;
+    fetchHeroes: (game: RoomGame) => Promise<void>;
     setSearchQuery: (query: string) => void;
     filterHeroesByName: (query: string) => void;
     filterHeroesByLane: (laneId: number) => void;
@@ -39,7 +39,7 @@ export const useHeroesStore = create<HeroesState>((set, get) => ({
     isLoading: false,
     error: null,
 
-    fetchHeroes: async (game: Game = Game.MLBB) => {
+    fetchHeroes: async (game: RoomGame) => {
         set({ isLoading: true, error: null });
 
         try {
@@ -69,6 +69,8 @@ export const useHeroesStore = create<HeroesState>((set, get) => ({
                 image_profile_url: hero.image_profile_url,
                 image_slot_url: hero.image_slot_url
             }));
+
+            console.log(heroes);
 
             set({
                 allHeroes: heroes,

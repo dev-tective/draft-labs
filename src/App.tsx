@@ -1,39 +1,25 @@
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./layout/Layout";
-import { Match } from "./pages/match/Match";
-import { GamesPage } from "./pages/game/GamesPage";
-import { useUserStore } from "./stores/userStore";
-import { useEffect, useRef } from "react";
-import { UserModal } from "./components/modals/UserModal";
-import { ModalRef } from "./layout/ModalLayout";
 import { RoomPage } from "./room/RoomPage";
+import { MatchPage } from "./macth/MatchPage";
+import { MatchGamePage } from "./match-game/MatchGamePage";
 
 function App() {
-  const { user } = useUserStore();
-  const userModalRef = useRef<ModalRef>(null);
-
-  // Abre el modal automáticamente si no hay usuario
-  useEffect(() => {
-    if (!user) {
-      userModalRef.current?.open();
-    }
-  }, [user]);
-
+  
   return (
     <BrowserRouter>
-      <UserModal ref={userModalRef} />
       <Routes>
         <Route
           path="/customize"
           element={
             <Layout>
-              <Match />
+              <MatchPage />
             </Layout>
           }
         />
         <Route
-          path="/:roomId?"
+          path="/"
           element={
             <Layout>
               <RoomPage />
@@ -41,10 +27,18 @@ function App() {
           }
         />
         <Route
-          path="/games"
+          path="/matches"
           element={
             <Layout>
-              <GamesPage />
+              <MatchPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/matches/:id"
+          element={
+            <Layout>
+              <MatchGamePage />
             </Layout>
           }
         />

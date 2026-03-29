@@ -6,7 +6,7 @@ import { ModalRef } from "@/layout/ModalLayout";
 import { EditPlayerModal } from "@/components/modals/EditPlayerModal";
 import { useTeamStore } from "@/stores/teamStore";
 import { usePlayerStore } from "@/stores/playerStore";
-import { useMatchStore } from "@/stores/matchStore";
+import { useMatchStore } from "@/macth/store/matchStore";
 import { useAlertStore, AlertType } from "@/stores/alertStore";
 import DEFAULT_LOGO from "@/assets/ui/shield.svg";
 import { DragDropProvider, useDragDropMonitor, useDroppable } from "@dnd-kit/react";
@@ -31,7 +31,7 @@ const ActiveZone = ({ teamId, droppableId }: { teamId: string; droppableId: stri
             state.players.filter((p) => p.team_id === teamId && p.is_active)
         )
     );
-    
+
     const activeCount = activePlayers.length;
 
     useDragDropMonitor({

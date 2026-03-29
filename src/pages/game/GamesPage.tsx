@@ -7,7 +7,7 @@ import { TagSelect } from "@/components/TagSelect";
 import { CutOutBtnPrimary } from "@/components/CutOutBtn";
 import { MatchGame, useGameStore } from "@/stores/gameStore";
 import { usePickStore } from "@/stores/pickStore";
-import { useMatchStore } from "@/stores/matchStore";
+import { useMatchStore } from "@/macth/store/matchStore";
 import { useTagStore } from "@/stores/tagStore";
 import { useTeamStore } from "@/stores/teamStore";
 import { DragDropProvider } from "@dnd-kit/react";

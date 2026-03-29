@@ -1,7 +1,7 @@
 import { forwardRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { ModalLayout, ModalRef } from "@/layout/ModalLayout";
-import { useMatchStore } from "@/stores/matchStore";
+import { useMatchStore } from "@/macth/store/matchStore";
 import { useTeamStore } from "@/stores/teamStore";
 
 export const ResetMatchModal = forwardRef<ModalRef, object>((_props, ref) => {

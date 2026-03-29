@@ -8,7 +8,7 @@ import { ModalRef } from "@/layout/ModalLayout";
 import { AlertType } from "@/stores/alertStore";
 import { useTeamStore } from "@/stores/teamStore";
 import { Icon } from "@iconify/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TeamContainer } from "./components/TeamContainer";
 import { CreateTeamModal } from "@/components/modals/CreateTeamModal";
 import { useRoomStore } from "@/room/store/roomStore";
@@ -68,6 +68,8 @@ const RoomContent = () => {
     const { teams, subscribeToRoom, loading } = useTeamStore();
     const createTeamModalRef = useRef<ModalRef>(null);
 
+    const [searchTeam, setSearchTeam] = useState("");
+
     useEffect(() => {
         if (room?.id) {
             subscribeToRoom(room.id);
@@ -76,8 +78,12 @@ const RoomContent = () => {
 
     if (roomStaffLoading || loading) return <LoadingSpinner message="Cargando equipos..." />;
 
+    const filteredTeams = teams.filter(t => 
+        t.name.toLowerCase().includes(searchTeam.toLowerCase())
+    );
+
     return (
-        <div className="w-full flex flex-col gap-8 pb-20">
+        <div className="w-full flex flex-col gap-8 pb-15">
             {/* Header with ID and Match Settings */}
             <div className="
                         flex flex-col xl:flex-row items-start justify-between
@@ -118,6 +124,27 @@ const RoomContent = () => {
                 </div>
             </div>
 
+            {/* Filter Input */}
+            <div className="relative w-full md:w-1/2 lg:w-1/3">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <Icon icon="mdi:magnify" className="text-slate-400 text-xl" />
+                </div>
+                <input
+                    type="text"
+                    placeholder="Buscar equipo por nombre..."
+                    value={searchTeam}
+                    onChange={(e) => setSearchTeam(e.target.value)}
+                    className="
+                        w-full pl-10 pr-4 py-3
+                        bg-slate-900/50 border border-slate-700
+                        beveled-bl-tr rounded-tr-xl rounded-bl-xl
+                        text-sm text-slate-200 placeholder-slate-500
+                        focus:outline-none focus:border-cyan-500/50 focus:bg-slate-900/80
+                        transition-colors
+                    "
+                />
+            </div>
+
             {/* Teams — with slide navigation when there are more than 2 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <CreateTeamModal
@@ -142,7 +169,7 @@ const RoomContent = () => {
                         <span className="text-slate-200">Crear Equipo</span>
                     </button>
                 </div>
-                {teams.map((team, index) => (
+                {filteredTeams.map((team, index) => (
                     <TeamContainer
                         key={team.id}
                         team={team}

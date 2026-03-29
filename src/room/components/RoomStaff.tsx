@@ -31,7 +31,7 @@ export const RoomStaff = () => {
     return (
         <div
             ref={containerRef}
-            className="fixed bottom-5 right-5"
+            className="fixed bottom-16 md:bottom-5 right-5"
         >
             {/* Trigger button */}
             <button

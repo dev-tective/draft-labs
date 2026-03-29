@@ -14,8 +14,8 @@ const isDefaultLogo = (url?: string | null) => !url || url === SHIELD;
 
 const buildForm = (t: Team) => ({
     name: t.name,
-    acronym: t.acronym,
-    coach: t.coach || '',
+    acronym: t.acronym ?? null,
+    coach: t.coach ?? null,
     logoUrl: isDefaultLogo(t.logo_url) ? '' : (t.logo_url ?? ''),
     useCustomLogo: !isDefaultLogo(t.logo_url),
 });
@@ -37,8 +37,8 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
         await updateTeam({
             id: team.id,
             name: name.trim(),
-            acronym: acronym?.trim(),
-            coach: coach.trim() || undefined,
+            acronym: acronym?.trim() || null,
+            coach: coach?.trim() || null,
             logo_url: (useCustomLogo && logoUrl?.trim()) ? logoUrl.trim() : undefined,
         });
 
@@ -113,7 +113,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                 >
                     <input
                         type="text"
-                        value={acronym}
+                        value={acronym ?? ''}
                         onChange={(e) => setForm(prev => ({ ...prev, acronym: e.target.value }))}
                         placeholder="Siglas (máx. 5)"
                         maxLength={5}
@@ -140,7 +140,7 @@ export const EditTeamModal = forwardRef<ModalRef, EditTeamModalProps>(({ team },
                 >
                     <input
                         type="text"
-                        value={coach}
+                        value={coach ?? ''}
                         onChange={(e) => setForm(prev => ({ ...prev, coach: e.target.value }))}
                         placeholder="Nombre del entrenador"
                         className="
